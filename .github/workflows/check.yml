@@ -1,0 +1,118 @@
+# Everything that can be checked without a router.
+#
+# What is NOT here, and deliberately: installing the built packages on a real 25.12 and a real 24.10
+# userland and driving the page against them. That claim needs a router, is made by hand before
+# every release, and is written down in CLAUDE.md under "Verifying".
+
+name: check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  modules:
+    name: parse, and parse again after jsmin
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      # tools/t0.sh fetches jsmin.c at the commit in luci-upstream.pin and verifies its sha256
+      # before compiling it: the minifier that runs on the OpenWrt buildbot is the one that decides
+      # whether a module still parses after a build, so the gate runs the real thing rather than a
+      # grep for the shapes somebody thought of.
+      - run: tools/t0.sh
+
+  i18n:
+    name: the catalogue is current and complete
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: install gettext
+        run: sudo apt-get update && sudo apt-get install -y gettext
+      # An uncompiled _() falls through to its English msgid and renders in English with nothing
+      # reporting it, so a stale catalogue cannot fail loudly at runtime. It fails here instead.
+      - run: ./update-po.sh --check
+        working-directory: luci-app-footstrap-files
+
+  package:
+    name: the package's load-bearing lines
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      # csstidy, which luci.mk runs by default, predates @layer by fifteen years and drops the
+      # wrapper together with every rule inside it.
+      - name: LUCI_MINIFY_CSS:=0
+        run: grep -qF 'LUCI_MINIFY_CSS:=0' luci-app-footstrap-files/Makefile
+
+      # include/scan.mk builds the package list by GREPPING Makefiles for `call BuildPackage`;
+      # luci.mk calls it, but the grep cannot see that, so this literal is what puts the package
+      # into the SDK's list. Removed as boilerplate, the package silently vanishes.
+      - name: the BuildPackage marker
+        run: grep -qF 'call BuildPackage' luci-app-footstrap-files/Makefile
+
+      # tools/stage.sh greps for the literal package name rather than $(PKG_NAME), and refuses to
+      # build a package whose install-time half it cannot find. It caught this once already.
+      - name: the postinst block is named literally
+        run: grep -qF 'define Package/luci-app-footstrap-files/postinst' luci-app-footstrap-files/Makefile
+
+      # This package DOES ship an ACL, and exactly one: it is a file manager, the grant is the whole
+      # point, and a second file would be a second answer to the same question.
+      - name: exactly one acl.d file, and it is ours
+        run: |
+          set -eu
+          n=$(find luci-app-footstrap-files -path '*rpcd/acl.d*' -name '*.json' | wc -l)
+          [ "$n" = 1 ] || { echo "expected exactly one acl.d file, found $n" >&2; exit 1; }
+          python3 - <<'PY'
+          import json, sys
+          f = 'luci-app-footstrap-files/root/usr/share/rpcd/acl.d/luci-app-footstrap-files.json'
+          d = json.load(open(f))
+          g = d.get('luci-app-footstrap-files')
+          if not g: sys.exit('the ACL group must be named after the package')
+          w = g.get('write', {})
+          if not w.get('file'): sys.exit('the file grant is missing')
+          if not w.get('cgi-io'): sys.exit('the cgi-io grant is missing - upload and download go through it')
+          print('acl ok')
+          PY
+
+      # The menu node must depend on that group, or the page appears for a session that cannot use
+      # it and every call answers "access denied".
+      - name: the menu node depends on the ACL group
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          f = 'luci-app-footstrap-files/root/usr/share/luci/menu.d/luci-app-footstrap-files.json'
+          for path, node in json.load(open(f)).items():
+              acl = node.get('depends', {}).get('acl', [])
+              if 'luci-app-footstrap-files' not in acl:
+                  sys.exit(path + ' does not depend on the ACL group')
+          print('menu ok')
+          PY
+
+  markup:
+    name: file names are data
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      # This page renders names taken off a filesystem. E() sets text; innerHTML would make a file
+      # called `<img onerror=…>` executable markup, and the whole XSS story of this package is that
+      # there is no such sink. The vendored editor is excluded: third-party code, shipped verbatim,
+      # not ours to edit.
+      - name: no innerHTML, no insertAdjacentHTML, no document.write
+        run: |
+          set -eu
+          if grep -rnE 'innerHTML|insertAdjacentHTML|document\.write' \
+               luci-app-footstrap-files/htdocs/luci-static/resources; then
+            echo "A name from the filesystem must never reach a markup sink." >&2
+            exit 1
+          fi
+          echo "none found"
+
+      # The vendored tree keeps its licence beside it, or this package redistributes MIT code with
+      # nothing saying so.
+      - name: the vendored editor keeps its licence
+        run: test -f luci-app-footstrap-files/htdocs/luci-static/footstrap-files/vendor/pce/LICENSE

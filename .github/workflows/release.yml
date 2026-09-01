@@ -1,0 +1,105 @@
+# Build the packages, and on a tag sign and publish them.
+#
+# The packages are built by owfeed, not by the OpenWrt SDK: this package is noarch, and the SDK
+# spends about five minutes per format downloading a cross toolchain in order to run `cp`. The SDK
+# path is still a gate — tools/t2-inspect.sh and tools/t2-install.sh build and install a real .apk
+# and .ipk from the Makefile on both package managers — but it is run by hand against a live router,
+# which no GitHub runner has. See owfeed.yml for the full argument.
+#
+# The signing key is the AUTHOR's, shared with luci-theme-footstrap: owfeed-packages already pins
+# its public half under keys/vizzletf-release.pub, one author signs both packages, and a second key
+# would be one more thing to rotate and one more way for the two halves of one install to disagree
+# about who signed them. `release.pub` in this repository is that same public half, and
+# `verify-with` holds the release job to it.
+
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Everything that needs no router. A tag cannot publish past a red gate.
+  gates:
+    uses: ./.github/workflows/check.yml
+
+  package:
+    name: Build the packages
+    needs: gates
+    timeout-minutes: 20
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # tools/stage.sh falls back to `git describe` when FOOTSTRAP_VERSION is unset, and a
+          # shallow clone has no tags to describe from.
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - uses: owfeed/owfeed/setup@v0.5.1
+        with:
+          version: v0.5.1
+
+      # The COMMIT's timestamp, not the job's: a package's identity is a hash over its payload and
+      # mkpkg records mtimes, so re-running a release over the same commit must produce the same
+      # bytes.
+      - run: echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
+
+      # On a tag the version comes from the tag; on a manual run stage.sh takes the newest one.
+      - name: stage
+        run: |
+          case "${GITHUB_REF}" in
+            refs/tags/v*) export FOOTSTRAP_VERSION="${GITHUB_REF_NAME#v}" ;;
+          esac
+          tools/stage.sh
+
+      - run: owfeed plan
+      - run: owfeed check
+      - run: owfeed build
+
+      # A build that quietly produced nothing is the one failure an artifact upload can catch for
+      # free, and `if-no-files-found: error` is what makes it fail rather than publish an empty
+      # release.
+      # The NAME IS THE CONTRACT: the reusable release workflow downloads an artifact called
+      # `owfeed-packages` and nothing else. Uploading it as `packages` builds fine, passes every
+      # gate, and fails the release job with "Artifact not found" after the tag is already pushed.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: owfeed-packages
+          path: |
+            dist/noarch
+            dist/all
+          if-no-files-found: error
+
+  release:
+    name: Sign and publish
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    uses: owfeed/owfeed/.github/workflows/package.yml@v0.5.1
+    secrets:
+      # Both already exist in the luci-theme-footstrap repository and have to be copied here; this
+      # repository signs with the same author key.
+      sign-key: ${{ secrets.OWFEED_AUTHOR_KEY }}
+      usign-key: ${{ secrets.FOOTSTRAP_USIGN_KEY }}
+    with:
+      owfeed-version: v0.5.1
+      # Writes dist/install.sh and release-notes.md. The installer is an asset because
+      # raw.githubusercontent.com is rate-limited for the very user who most needs it, and because a
+      # signed copy is the only one checkable before it runs as root; the notes fill the release page
+      # and are not an asset, hence a path beside dist/ rather than in it.
+      #
+      # A WORKSPACE PATH, not `${{ runner.temp }}`: at job level a reusable workflow's `with:` may
+      # only read github/needs/vars/inputs, and naming `runner` there fails the whole run at STARTUP
+      # with zero jobs and no log to read.
+      pre-release: sh tools/stage-release.sh
+      sign-also: install.sh
+      notes-file: release-notes.md
+      verify-with: release.pub

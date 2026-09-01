@@ -1,0 +1,120 @@
+# How the released packages are built — see https://github.com/owfeed/owfeed
+#
+#   ./tools/stage.sh     # produce dist/root, the tree owfeed packages
+#   owfeed build         # dist/noarch/*.apk (25.12) + dist/all/*.ipk (24.10)
+#
+# Why this and not the OpenWrt SDK: this package is noarch — browser JS, one stylesheet and a shell
+# script, not one compiled byte — and the SDK spends about five minutes per format downloading and
+# verifying a cross toolchain in order to run `cp`, twice, because 24.10's opkg and 25.12's apk are
+# different containers. What the SDK contributes that matters is done elsewhere: the .lmo catalogue
+# (owfeed compiles it, byte-identical to po2lmo), the lifecycle sidecars, and the default_postinst
+# wrapper that makes /etc/uci-defaults/* run at all — owfeed adds that too.
+#
+# The SDK path did NOT go away: luci-app-footstrap-files/Makefile stays, tools/t2-*.sh build and
+# install a real .apk and .ipk from it on both package managers, and CI holds the Makefile's
+# load-bearing lines. Anyone can build this in an OpenWrt tree; nothing we release comes from one.
+
+version: 1
+
+feed:
+  name: footstrap-files
+  # This repository publishes RELEASE ASSETS, not a feed of its own: an installed key is a trust
+  # anchor for every package name, which is more authority than one plugin should ask for. The feed
+  # that carries this package is owfeed-packages, which pins our released artifact by sha256 and
+  # adds its own signature — so `build` is the only stage this file drives.
+  url: https://repo.owfeed.org
+  title: Footstrap files
+  maintainer: "VizzleTF <vizzletf47@gmail.com>"
+  license: Apache-2.0
+  homepage: https://github.com/VizzleTF/luci-app-footstrap-files
+
+# Both lines, from one staged tree. 25.12+ is apk, 24.10 is opkg, and the difference is not only the
+# container: opkg calls an architecture-independent package `all` where apk requires `noarch` and
+# rejects `all`. owfeed emits each under the name its manager understands.
+releases:
+  - line: "25.12"
+    default: true
+    format: apk
+  - line: "24.10"
+    format: ipk
+
+# NO `signing:` block, and its absence is the point. Those keys sign a feed's INDEX, and this
+# repository never builds one: it publishes release assets, and the feed that carries them signs its
+# index with its own key at the far end. What vouches for our bytes is `owfeed release`, whose usign
+# signatures over the packages and the manifest are made in the release job, where the secret is
+# reachable and the build job cannot see it.
+
+# Required by the schema and unused here: `publish` hands a built feed to a host, and this repository
+# stops after `build`.
+publish:
+  - target: github-pages
+
+packages:
+  - name: luci-app-footstrap-files
+    build: mkpkg
+    # Never "all" here: apk rejects `all` as uninstallable, which is why OpenWrt's package-pack.mk
+    # rewrites LUCI_PKGARCH:=all into arch:noarch on the way to mkpkg. The ipk leg gets `all` from
+    # owfeed, not from this line.
+    arch: noarch
+    # Written by tools/stage.sh from the tag (CI) or the newest tag (a working tree), with the -r1
+    # that PKG_RELEASE:=1 puts on every asset name in the SDK path.
+    version-from: file:./dist/VERSION
+    files: ./dist/root
+
+    description: "Browse, upload, download, edit and delete files on the router."
+    # The Makefile's LUCI_DEPENDS verbatim. luci-theme-footstrap is not optional: this package is
+    # four JS modules the theme's chrome requires, and without it nothing loads them.
+    depends: [luci-base, cgi-io]
+    license: Apache-2.0
+    url: https://github.com/VizzleTF/luci-app-footstrap-files
+    maintainer: "VizzleTF <vizzletf47@gmail.com>"
+    # Which commit produced these bytes, recorded in the package itself.
+    repo-commit: env:GITHUB_SHA
+
+    # NO `conffiles`. This package ships nothing under /etc/config — it only ADDS a list entry to
+    # the theme's /etc/config/footstrap from its uci-defaults, and that file is the theme's conffile
+    # to declare. Claiming it here would be a second owner for one file.
+
+    # Extracted from the Makefile's own defines by tools/stage.sh, so the SDK path and this one
+    # cannot disagree about what happens at install time. owfeed adds the default_postinst /
+    # default_prerm wrapper around them, exactly as package-pack.mk does — which is what makes
+    # /etc/uci-defaults/40_luci-app-footstrap-files run and register the plugin.
+    #
+    # Both reach both formats, checked on the built artifacts rather than assumed: owfeed's ipk
+    # carries CONTROL/postinst (our body inlined after default_postinst), CONTROL/prerm and
+    # CONTROL/postrm with the `case "$1" in *upgrade*` guard intact. Where the two build paths
+    # differ is only WHERE the body lands — the SDK writes it to CONTROL/postinst-pkg and generates
+    # a wrapper, owfeed inlines it — so tools/t2-inspect.sh reads either.
+    scripts:
+      post-install: ./dist/scripts/post-install
+      post-deinstall: ./dist/scripts/post-deinstall
+
+# ---- one package per language ----
+#
+# NAMES AND PATHS ARE luci.mk's, not ours: `luci-i18n-$(LUCI_BASENAME)-<lang>` with LUCI_BASENAME
+# `footstrap-files`, and the catalogue basename `footstrap-files`, so po2lmo in an SDK build and owfeed
+# here produce the same file in the same package for the same router.
+
+  - name: luci-i18n-footstrap-files-ru
+    build: mkpkg
+    arch: noarch
+    version-from: file:./dist/VERSION
+    files: ./dist/i18n-ru
+    description: "Footstrap files - Russian translation"
+    depends: [luci-app-footstrap-files]
+    license: Apache-2.0
+    url: https://github.com/VizzleTF/luci-app-footstrap-files
+    maintainer: "VizzleTF <vizzletf47@gmail.com>"
+    i18n:
+      from: ./dist/po-ru
+      basename: footstrap-files
+    # `depends` points from the catalogue to the package, so upgrading the PACKAGE never pulls a
+    # catalogue in — measured on the theme, a Russian router taking an upgrade through the feed lost
+    # every .lmo with the old package and gained no new one, going back to English with nothing
+    # saying why. `install-if` is apk's answer: install this by yourself once both are true. The pin
+    # re-fires the rule on every upgrade; `luci-i18n-base-ru` is what "this router is Russian" looks
+    # like to a package manager, which cannot read `uci luci.main.lang`.
+    #
+    # opkg has no conditional form of this — `Recommends:` is unconditional and would put Russian on
+    # every 24.10 router — so that leg is covered by install.sh instead.
+    install-if: [ "luci-app-footstrap-files={version}", "luci-i18n-base-ru" ]
