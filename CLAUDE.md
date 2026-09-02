@@ -21,6 +21,8 @@ release is not optional.
 |---|---|
 | `htdocs/luci-static/resources/view/footstrap-files/browser.js` | the page: listing, toolbar, operations, the editor panel |
 | `htdocs/luci-static/resources/view/footstrap-files/editor.js` | the editor, assembled by hand out of prism-code-editor |
+| `htdocs/luci-static/resources/view/footstrap-files/grammars.js` | OUR uci and shell grammars — the library's `bash` was 5.7 KB of the wrong language |
+| `htdocs/luci-static/resources/view/footstrap-files/editor.css` | OUR editor colours, one file for both modes, off the export tier |
 | `htdocs/luci-static/resources/view/footstrap-files/files.css` | unlayered and `.fsf-*`-scoped; colour from the export tier with literal fallbacks, spacing and radius as plain values |
 | `htdocs/luci-static/resources/view/footstrap-files/vendor/pce/` | third-party, vendored verbatim — **not ours to edit**; minified on the way out (see below) |
 | `root/usr/share/luci/menu.d/`, `root/usr/share/rpcd/acl.d/` | the menu node and the grant |
@@ -99,8 +101,24 @@ table markup. The three that cost the most:
 - **E() sets text, never markup.** A file name is data. There is no `innerHTML` on this page and
   there must not be one.
 - **The vendored editor is pruned by reachability**, not by hand: `setups/index.js` pulls a barrel
-  that imports every grammar (263 files, measured). Adding a language means adding
-  `prism/languages/<lang>.js` AND `languages/<lang>.js` and re-running the prune.
+  that imports every grammar (263 files, measured). What is left of it is the editor and the search
+  widget — 17 files. Three things that used to come from it do not any more, and each was measured
+  before it went:
+  - `languages/*.js` (indent and comment rules) wrote into `languageMap`, **which nothing in this
+    build reads** — the reader is `extensions/commands`, which we do not load. Proved on the stand:
+    Enter inside a `{` gave a bare newline and Ctrl+/ did nothing, before and after. 3,970 bytes.
+  - the `bash`, `ini` and `nginx` grammars: `grammars.js` has uci and shell of our own, and uci
+    finally has keywords instead of being lexed as a shell script. 7,132 bytes.
+  - `themes/github-*.css`: `editor.css` is one sheet on the export tier for both modes, so there is
+    no `isDark()` and no swap. 6,492 bytes.
+- **A NEW GRAMMAR GOES IN `grammars.js`**, not into `vendor/`. It is an ordered object of regexes —
+  Prism tries them in turn — registered on `prism.languages` when the editor loads. NO LOOKBEHIND:
+  Safari learned it in 16.4 and this package's floor is 15.4, so a name that follows a keyword is
+  one match with an `inside`, never `(?<=…)`.
+- **Editor colours are the THEME's**, from the same 26 export names the rest of the page uses, with
+  a literal fallback on each. Nothing in `editor.css` may read `--fs-*`, and no `--pce-*` name that
+  no vendored sheet reads belongs there — the library understands `--pce-ac-*`, `--pce-tabstop`,
+  `--pce-bg-fold` and more, all of them for extensions this package does not load.
 - **Find is a BUTTON because Ctrl+F is not a gesture a phone has.** The vendored widget opens on
   Ctrl+F, Cmd+F and F3 and on nothing else, so on touch the find-and-replace this package vendors
   could not be reached at all. The magnifier sits left of Save, is a toggle, and calls
@@ -130,7 +148,7 @@ table markup. The three that cost the most:
   on disk against the packages declared for them, in both directions, and runs in T0 and in CI.
 - **The payload is minified on the way out, never in the checkout.** `tools/stage.sh` runs
   `minify-js.mjs` (terser) over the view's own modules and `minify-css.sh` over `files.css`:
-  125,374 bytes of payload become 81,441. The SDK path still uses jsmin, which is what T0 gates, so
+  110,255 bytes of payload become 68,534. The SDK path still uses jsmin, which is what T0 gates, so
   the two paths ship different bytes for one commit on purpose. The step this replaced globbed
   `resources/fs-cmd*.js`, a path copied from the sibling package, matched nothing and skipped
   minification in silence: v0.1.0 shipped the commented sources. CI now compares staged bytes
