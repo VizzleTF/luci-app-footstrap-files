@@ -66,6 +66,15 @@ table markup. The three that cost the most:
 - **A `contextmenu` event can carry no coordinates** — the menu key and Shift+F10 send 0/0 — and the
   arithmetic then yields `NaNpx`, which the browser drops and the menu lands wherever its static
   position falls. Without coordinates it is anchored under the row.
+- **A FULL CLIPBOARD OWNS THE TOOLBAR TOO — but keeps the path.** Copy and Move used to paint a
+  strip under the bar, which is a fourth row appearing the moment something is marked and, on a
+  phone, the listing pushed down under the finger exactly as the reader goes looking for the
+  destination. The bar now carries the count, **Paste here** and **Cancel** instead of the six file
+  buttons that mean nothing with a full clipboard. Unlike select mode it does NOT take the whole
+  bar: a paste acts on a directory the reader has still to walk to, so the path box, Go and Up stay.
+  The count has its OWN class (`.fsf-clipcount`, not `.fsf-selcount`) — one class for both made a
+  full clipboard indistinguishable from select mode to anything reading the page, and the probe went
+  looking for a Done button that is not there.
 - **Select mode owns the toolbar, and an action ends it.** A second bar under the first pushed the
   listing down on every tick; ticking now repaints classes only (`paintSelection`), measured at 0px
   of scroll and 0px of height change.

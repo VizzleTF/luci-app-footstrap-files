@@ -63,23 +63,11 @@
 .fsf-crumbs a { color: var(--primary-color-medium, #0069d9); text-decoration: none; }
 .fsf-crumbs a:hover { text-decoration: underline; }
 
-/* ---- the clipboard strip ------------------------------------------------------------------------
+/* ---- the count in the toolbar ---------------------------------------------------------------
  *
- * It exists only while something is marked, and has to be findable after a navigation: the reader
- * marks here, walks somewhere else, and needs to see that the mark survived. An accent hairline
- * rather than a filled banner — this is a state, not a warning. */
-.fsf-clip:not(:empty) {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: .5rem;
-	margin-bottom: .75rem;
-	padding: .5rem .75rem;
-	border: 1px solid var(--primary-color-medium, #0069d9);
-	border-radius: 6px;
-	background: var(--background-color-high, #fff);
-}
-
+ * Select mode and a full clipboard both take the toolbar over and both say how many, so the count
+ * is one class. It does not shrink: a wrapping toolbar may put it on a line of its own, and a
+ * number that has been squeezed to "3 it…" answers nothing. */
 /* ---- the name cell ------------------------------------------------------------------------------
  *
  * The flex box is the inner span and NOT the `<td>`: a table cell told to be a flex container leaves
@@ -475,11 +463,12 @@
 	background: color-mix(in srgb, var(--primary-color-medium, #0969da) 12%, transparent);
 }
 
-/* The mode's own bar: the count, what can be done to it, and the way out. `:empty` keeps it out of
- * the layout entirely while the reader is not selecting. */
-/* The count that sits where the path box was while select mode owns the toolbar. */
-
-.fsf-selcount {
+/* HOW MANY — for both states that take the toolbar over: select mode, where it sits where the path
+ * box was, and a full clipboard, where it sits beside it. One class, because it answers the same
+ * question. `flex: none` so a wrapping bar never squeezes a number down to an ellipsis. */
+.fsf-selcount,
+.fsf-clipcount {
+	flex: none;
 	margin-right: .25rem;
 	align-self: center;
 	font-weight: 600;

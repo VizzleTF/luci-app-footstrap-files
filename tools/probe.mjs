@@ -145,27 +145,29 @@ ok('chown', /nobody/.test(stat.out) && /nogroup/.test(stat.out), stat.out.slice(
 /* ---- copy into a subdirectory, then move it back ---------------------------------------------- */
 await pick('renamed.txt');
 await bar('Copy');
-/* If the mark did not take, say WHY rather than time out: the page's own notification is the
- * answer, and "Nothing selected" means a refresh landed between the tick and the button. */
-await page.locator('.fsf-clip', { hasText: 'to copy' }).waitFor({ timeout: 10000 }).catch(async () => {
+/* A FULL CLIPBOARD TAKES THE TOOLBAR: the count appears in the bar itself, beside the path, and
+ * Paste here is one of its buttons. If the mark did not take, say WHY rather than time out — the
+ * page's own notification is the answer, and "Nothing selected" means a refresh landed between the
+ * tick and the button. */
+await page.locator('.fsf-clipcount', { hasText: 'to copy' }).waitFor({ timeout: 10000 }).catch(async () => {
 	const note = (await page.locator('body').innerText()).match(/Nothing selected[^\n]*|Cannot[^\n]*/g);
 	ok('copy marks the clipboard', false, note ? note.join(' | ') : 'no notification either');
 });
 await at(`${DIR}/sub`);
-await page.locator('.fsf-clip button', { hasText: 'Paste here' }).click(); await page.waitForTimeout(2500);
+await bar('Paste here'); await page.waitForTimeout(2500);
 const copied = await onRouter('/bin/ls', [ '-l', '--', `${DIR}/sub/renamed.txt` ]);
 ok('copy', copied.code === 0);
 ok('copy keeps the mode (cp -a)', copied.out.startsWith('-rw-------'), copied.out.slice(0, 40));
 
 await pick('renamed.txt');
 await bar('Move');
-await page.locator('.fsf-clip', { hasText: 'to move' }).waitFor({ timeout: 10000 });
+await page.locator('.fsf-clipcount', { hasText: 'to move' }).waitFor({ timeout: 10000 });
 /* UP, not the last breadcrumb — that one is the directory we are already in, and pasting there is
  * refused on purpose ("source and destination are the same directory"). */
 await bar('Up'); await page.waitForTimeout(2000);
 /* A NAME THAT IS ALREADY TAKEN. The original is still here, so this paste must refuse rather than
  * overwrite — and it must SAY so: both `cp -n` and `mv -n` skip silently with exit 0. */
-await page.locator('.fsf-clip button', { hasText: 'Paste here' }).click(); await page.waitForTimeout(2500);
+await bar('Paste here'); await page.waitForTimeout(2500);
 ok('a paste onto an existing name is refused', (await onRouter('/bin/ls', [ '--', `${DIR}/sub/renamed.txt` ])).code === 0);
 /* The notification is NOT inside #view: ui.addNotification puts it in luci-base's own container
  * above the page, which is where a reader looks and where this assertion has to look too. */
@@ -176,9 +178,9 @@ await onRouter('/bin/mkdir', [ '-p', '--', `${DIR}/dest` ]);
 await at(`${DIR}/sub`);
 await pick('renamed.txt');
 await bar('Move');
-await page.locator('.fsf-clip', { hasText: 'to move' }).waitFor({ timeout: 10000 });
+await page.locator('.fsf-clipcount', { hasText: 'to move' }).waitFor({ timeout: 10000 });
 await at(`${DIR}/dest`);
-await page.locator('.fsf-clip button', { hasText: 'Paste here' }).click(); await page.waitForTimeout(2500);
+await bar('Paste here'); await page.waitForTimeout(2500);
 ok('move leaves nothing behind', (await onRouter('/bin/ls', [ '--', `${DIR}/sub/renamed.txt` ])).code !== 0);
 ok('move puts it where the reader was', (await onRouter('/bin/ls', [ '--', `${DIR}/dest/renamed.txt` ])).code === 0);
 

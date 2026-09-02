@@ -201,6 +201,9 @@ const BAR = {
 	rename: [ 'M12 3H5a2 2 0 0 0-2 2v7l9 9 9-9-9-9z', 'M7.5 7.5h.01' ],
 	/* the editor's own: a magnifier, drawn at the toolbar's weight so it sits with Save and Close */
 	find: [ 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z', 'M20 20l-4.35-4.35' ],
+	/* the clipboard's two: a board with something dropping into it, and a plain dismissal */
+	paste: [ 'M9 4h6v3H9z', 'M9 5.5H6a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1h-3', 'M12 10v6', 'M9.5 13.5 12 16l2.5-2.5' ],
+	cancel: [ 'M6 6l12 12', 'M18 6L6 18' ],
 };
 
 /* One size down from the toolbar's: a row is 39px of icon and five buttons already, and the actions
@@ -750,23 +753,18 @@ return view.extend({
 		 * into a translated sentence, which reads as broken in every language but this one. */
 		if (!paths.length) return fail(_('Nothing selected'), _('Tick the files you want first.'));
 		this.clipboard = { op, paths };
-		this.showClipboard();
 		/* AN ACTION ENDS THE MODE, the way it does in the Files app: what was ticked is now on the
 		 * clipboard, the toolbar the reader needs next is the one with Up and the paste note, and a
 		 * selection left ticked in a directory they are about to leave is a set nobody can check. */
 		if (this.selectMode) this.exitSelect();
+		else this.drawBar();
 	},
 
-	showClipboard() {
-		if (!this.clipNote) return;
-		const c = this.clipboard;
-		dom.content(this.clipNote, c ? [
-			E('span', {}, (c.op === 'copy' ? _('%d item(s) to copy') : _('%d item(s) to move')).format(c.paths.length)),
-			' ',
-			E('button', { class: 'btn cbi-button cbi-button-action', click: ui.createHandlerFn(this, () => this.paste()) }, _('Paste here')),
-			' ',
-			E('button', { class: 'btn cbi-button', click: ui.createHandlerFn(this, () => { this.clipboard = null; this.showClipboard(); }) }, _('Forget')),
-		] : []);
+	/* Nothing to cancel is not the same as cancelling nothing: the button only exists while the
+	 * clipboard does, and dropping it puts the toolbar back the way it was. */
+	cancelClip() {
+		this.clipboard = null;
+		this.drawBar();
 	},
 
 	/* `cp -a` rather than `cp -r`: a router's files carry modes and symlinks that a plain copy
@@ -798,7 +796,7 @@ return view.extend({
 			});
 		}), Promise.resolve()).then(() => {
 			if (c.op === 'move') this.clipboard = null;
-			this.showClipboard();
+			this.drawBar();
 			return this.refresh();
 		});
 	},
@@ -1335,6 +1333,39 @@ return view.extend({
 		if (!this.bar) return;
 		const b = this.barButton.bind(this);
 
+		/* A FULL CLIPBOARD OWNS THE TOOLBAR, the way select mode does — and for the same measured
+		 * reason: the paste strip under the bar was a fourth row appearing the moment something was
+		 * copied, and on a phone it pushed the listing down under the reader's finger just as they
+		 * went looking for the destination.
+		 *
+		 * It is NOT the same swap as select mode's, though. Select mode acts on what is already on
+		 * screen, so it can take the whole bar; a paste acts on the directory the reader has still
+		 * to walk to, so the path, Go and Up stay exactly where they were. What the two buttons
+		 * replace is the six that are meaningless with a full clipboard anyway.
+		 *
+		 * Select mode wins if both are somehow on: `clip()` leaves the mode, so this is the state
+		 * after a menu action that ticked something first. */
+		if (this.clipboard && !this.selectMode) {
+			const c = this.clipboard;
+			return dom.content(this.bar, [
+				this.pathInput,
+				b('go', _('Go'), () => this.go(this.pathInput.value), 'cbi-button-action'),
+				b('up', _('Up'), () => this.go(parent(this.path))),
+				/* ITS OWN CLASS, not select mode's. The two counts look the same and are styled
+				 * together, but "how many are ticked" and "how many are waiting to be pasted" are
+				 * different states, and one class for both makes them indistinguishable to anything
+				 * reading the page — tools/probe.mjs took a full clipboard for select mode and went
+				 * looking for a Done button that is not there. */
+				E('span', { class: 'fsf-clipcount' },
+					(c.op === 'copy' ? _('%d item(s) to copy') : _('%d item(s) to move')).format(c.paths.length)),
+				b('paste', _('Paste here'), () => this.paste(), 'cbi-button-action'),
+				b('cancel', _('Cancel'), () => this.cancelClip()),
+				this.modeButtons[0],
+				this.modeButtons[1],
+				this.status,
+			]);
+		}
+
 		if (this.selectMode) {
 			const n = this.selection.size;
 			return dom.content(this.bar, [
@@ -1384,7 +1415,6 @@ return view.extend({
 			keydown: ui.createHandlerFn(this, (ev) => { if (ev.key === 'Enter') return this.go(ev.target.value); }),
 		});
 		this.crumbs = E('div', { class: 'fsf-crumbs' }, this.breadcrumbs());
-		this.clipNote = E('div', { class: 'fsf-clip' });
 		this.status = E('span', { class: 'fsf-status' });
 		this.listing = E('div', { class: 'fsf-listing' });
 		this.bar = E('div', { class: 'fsf-bar' });
@@ -1418,7 +1448,6 @@ return view.extend({
 			E('h2', {}, _('Files')),
 			this.bar,
 			this.crumbs,
-			this.clipNote,
 			this.listing,
 		]);
 
