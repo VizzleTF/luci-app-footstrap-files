@@ -10,6 +10,10 @@ on:
   push:
     branches: [ main ]
   pull_request:
+  # release.yml runs these same gates before a tag may publish, and a reusable workflow must say so
+  # itself: without this trigger the release run fails at startup, in zero seconds, with "this run
+  # likely failed because of a workflow file issue" and no job log to read.
+  workflow_call:
 
 permissions:
   contents: read
