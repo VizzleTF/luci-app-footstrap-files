@@ -559,7 +559,9 @@ return view.extend({
 		 * and the way back to what the reader actually typed. Counting it in means shifting by one
 		 * — `-1` is slot 0 — and taking the modulus twice, because `%` in JS keeps the sign of the
 		 * left operand and ArrowUp off the top would otherwise land on a negative index. */
-		const at = ((this.suggestAt + 1 + step) % (n + 1) + (n + 1)) % (n + 1) - 1;
+		const ring = n + 1;
+		const slot = (((this.suggestAt + 1 + step) % ring) + ring) % ring;
+		const at = slot - 1;
 		this.suggestAt = at;
 		for (let i = 0; i < n; i++) items[i].setAttribute('aria-selected', i === at ? 'true' : 'false');
 		if (at < 0) return this.pathInput.removeAttribute('aria-activedescendant');
