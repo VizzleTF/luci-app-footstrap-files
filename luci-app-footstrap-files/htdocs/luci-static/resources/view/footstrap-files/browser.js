@@ -597,6 +597,17 @@ return view.extend({
 			L.require('view.footstrap-files.editor'),
 			fs.read_direct(path, 'text'),
 		]).then(([ editor, text ]) => {
+			/* NOT TEXT? THEN NOT THE TEXT EDITOR. `read_direct(path, 'text')` decodes with UTF-8 and
+			 * turns every byte it cannot make sense of into U+FFFD — and Save would then write those
+			 * replacement characters back, quietly destroying the file it was asked to edit. A
+			 * firmware image, a .ipk, anything compressed: one click on the row was enough.
+			 *
+			 * The hex editor is the right tool and it already exists, so the page opens it rather
+			 * than refusing. */
+			if (typeof text === 'string' && text.indexOf('\uFFFD') >= 0) {
+				ui.addNotification(null, E('p', _('%s is not text; opening it as hex.').format(path)), 'warning');
+				return this.hexEdit(path, entry);
+			}
 			const box = E('div', { class: 'fsf-editor' });
 			const status = E('span', { class: 'fsf-editor-status' }, '');
 
@@ -941,19 +952,40 @@ return view.extend({
 			.catch((err) => fail(_('Cannot rename %s').format(name), err));
 	},
 
+	/* DELETING A DIRECTORY TAKES EVERYTHING INSIDE IT, AND ubus DOES NOT ARGUE. This page used to
+	 * say the opposite — that `file remove` refuses a non-empty directory, so a recursive delete
+	 * could only happen through a second confirmation naming it. That was false: rpcd's
+	 * `rpc_file_remove` calls `rpc_file_remove_recursive` for anything that is a directory, and its
+	 * only gate is the per-entry `write` permission this package's ACL grants over `/*`. Measured
+	 * on the stand: `fs.remove()` on a directory holding two files and a subdirectory resolved and
+	 * took the lot.
+	 *
+	 * So the second question is asked FIRST, and it names the directories. The count-only prompt is
+	 * not enough on a page where a rubber band over a listing of `/` can pick up `/etc` next to the
+	 * file the reader meant — and where the recovery from that is a reflash. */
 	remove(paths) {
 		if (!paths.length) return;
-		if (!confirm(_('Delete %d item(s)? This cannot be undone.').format(paths.length))) return;
-		/* `fs.remove` is the ubus call and takes one path at a time; a directory with contents is
-		 * refused by it, which is the right default for a page that deletes as root. Recursive
-		 * deletion is deliberately absent from this version. */
+		/* ASKED OF THE ROUTER, not of the listing that happens to be on screen: `this.entries` is
+		 * whatever the last render read, and Delete can be reached from a menu opened on a stale
+		 * row. `stat` is one call per path and it is the only answer that cannot be out of date. */
+		return Promise.all(paths.map((p) => fs.stat(p).then((st) => ({ p, dir: st && st.type === 'directory' }),
+			() => ({ p, dir: false })))).then((info) => {
+			const dirs = info.filter((i) => i.dir).map((i) => i.p);
+			if (!confirm(_('Delete %d item(s)? This cannot be undone.').format(paths.length))) return;
+			if (dirs.length && !confirm(
+				_('%s is a directory. Delete it and everything inside?').format(dirs.join(', '))))
+				return;
+			return this.reallyRemove(paths);
+		});
+	},
+
+	reallyRemove(paths) {
 		return Promise.all(paths.map((p) => fs.remove(p).catch((err) => ({ p, err }))))
 			.then((results) => {
 				const bad = results.filter((r) => r && r.err);
-				/* ubus `file remove` refuses a directory with anything in it, which is the right
-				 * default for a page that deletes as root. Rather than leave the reader with an
-				 * error they cannot act on, the refusal is turned into the question it really is —
-				 * and `rm -r` runs only after a second confirmation that names the directory. */
+				/* What is left here is what ubus really does refuse — a permission it does not have,
+				 * a busy mount — and `rm -r` is the fallback for it, still behind a question that
+				 * names the path. */
 				const chain = bad.reduce((c, b) => c.then(() => {
 					if (!confirm(_('%s could not be removed (%s). Delete it and everything inside?')
 						.format(b.p, b.err && b.err.message ? b.err.message : b.err)))

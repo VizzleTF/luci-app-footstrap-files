@@ -25,7 +25,7 @@ for (const name of readdirSync(VIEW).filter((f) => f.endsWith('.js'))) {
 	const src = readFileSync(`${VIEW}/${name}`, 'utf8');
 	const ast = acorn.parse(src, ACORN);
 
-	let callsE = false, definesE = false, windowE = 0, modalTitles = [], dynamicTags = [];
+	let callsE = false, definesE = false, windowE = 0, modalTitles = [], dynamicTags = [], notifications = [];
 	const walk = (n) => {
 		if (!n || typeof n.type !== 'string') return;
 		if (n.type === 'FunctionDeclaration' && n.id && n.id.name === 'E') definesE = true;
@@ -49,6 +49,20 @@ for (const name of readdirSync(VIEW).filter((f) => f.endsWith('.js'))) {
 			if (c.type === 'MemberExpression' && c.property && c.property.name === 'showModal'
 			    && n.arguments.length && n.arguments[0].type !== 'ArrayExpression')
 				modalTitles.push(n.loc.start.line);
+			/* `ui.addNotification(title, children)` is the same sink TWICE — from the stand's own
+			 * ui.js: `if (title != null) dom.append(msg, E('h4', {}, title));` and then
+			 * `dom.append(msg, children)`. A string in either lands on innerHTML, and the module's
+			 * own E() wrapper cannot help: ui.js calls the GLOBAL E. Today the one call site passes
+			 * null and an element; this is what keeps the next one from being written as a string,
+			 * which is the shape luci-base's own apps use. */
+			if (c.type === 'MemberExpression' && c.property && c.property.name === 'addNotification')
+				n.arguments.slice(0, 2).forEach((a, i) => {
+					const okShape = a.type === 'ArrayExpression'
+						|| (a.type === 'Literal' && a.value === null)
+						|| a.type === 'CallExpression'		/* E(...) — the element branch */
+						|| a.type === 'Identifier';		/* a node held in a variable */
+					if (!okShape) notifications.push([ n.loc.start.line, i === 0 ? 'title' : 'children' ]);
+				});
 		}
 		for (const k of Object.keys(n)) {
 			if (k === 'loc' || k === 'start' || k === 'end' || k === 'type') continue;
@@ -66,6 +80,8 @@ for (const name of readdirSync(VIEW).filter((f) => f.endsWith('.js'))) {
 		fail(`${name}: reaches window.E directly, around the wrapper`);
 	for (const line of dynamicTags)
 		fail(`${name}:${line}: E() called with a tag that is not a literal — dom.create parses a first argument starting with '<'`);
+	for (const [ line, which ] of notifications)
+		fail(`${name}:${line}: ui.addNotification() ${which} is a bare string — it is appended with dom.append, which puts a string on innerHTML`);
 	for (const line of modalTitles)
 		fail(`${name}:${line}: ui.showModal() title is not an array — it is rendered with dom.create('h4', {}, title)`);
 }

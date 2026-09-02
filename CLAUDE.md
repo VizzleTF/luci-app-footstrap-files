@@ -130,8 +130,29 @@ table markup. The three that cost the most:
   named `; reboot;` is then an argument; a file named `-rf` is then a file.
 - **`cp -a`, not `cp -r`**, and `-n` on every paste: modes and symlinks survive, and nothing is
   overwritten without being asked.
-- **Recursive delete is offered only after ubus refuses**, and asks a second time naming the
-  directory. `chmod -R` is a checkbox and never the default.
+- **ubus `file remove` DELETES A DIRECTORY RECURSIVELY — it does not refuse.** This page said the
+  opposite for its whole life, and the second, naming confirmation was dead code because the first
+  delete always succeeded. rpcd's `rpc_file_remove` calls `rpc_file_remove_recursive` for anything
+  that is a directory; its only gate is the per-entry `write` this ACL grants over `/*`. Measured on
+  the stand: `fs.remove()` on a directory with a subdirectory and two files resolved and took the
+  lot. So the naming question is asked FIRST, from `fs.stat` on each path — the router's answer, not
+  the listing's, because Delete can be reached from a menu opened on a stale row. It matters because
+  a rubber band across a listing of `/` picks up `/etc` next to the file the reader meant, and the
+  count-only prompt named nothing. `rm -r` stays as the fallback for what ubus really does refuse.
+- **`chmod -R` is a checkbox and never the default.**
+- **A BINARY NEVER OPENS IN THE TEXT EDITOR.** `read_direct(path, 'text')` decodes as UTF-8 and
+  turns every byte it cannot read into U+FFFD; Save then wrote those replacement characters back and
+  destroyed the file. A file whose text round-trip is lossy now opens in the hex editor instead,
+  which is the tool for it and already exists.
+- **THE `exec` GRANT CANNOT USEFULLY BE NARROWED ON OpenWrt, and this was tested rather than
+  assumed.** `file: {"/*": [… "exec"]}` lets a session in this group run any command as root, so
+  the obvious hardening is to list the six commands the page runs. It does not work: `/bin/chmod`,
+  `/bin/cp`, `/bin/mv`, `/bin/rm`, `/bin/mkdir` and `/bin/chown` are all symlinks to `/bin/busybox`
+  — the same binary as `/bin/sh` — so a per-command grant either matches the shell too or, once
+  rpcd canonicalises the path, matches nothing and breaks the page. The stand cannot even show the
+  difference: `rpcd.@login[0]` gives root `read='*' write='*'`, so the grant is not what limits a
+  root session at all. Write access to `/etc/rc.local` — the package's whole purpose — is already
+  root code execution, which is the honest way to describe this package's authority.
 - **Nothing is written into `<head>`.** Stylesheets are `<link>`s inside the view's tree, so they
   die with `#view`; the editor's own styles live in its shadow root. A sheet in `<head>` survives an
   SPA navigation and repaints somebody else's page — the trap the theme documents.
