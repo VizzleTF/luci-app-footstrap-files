@@ -64,8 +64,7 @@
 .prism-code-editor .token.comment,
 .prism-code-editor .token.shebang { color: var(--text-color-low, #6a737d); }
 
-.prism-code-editor .token.string,
-.prism-code-editor .token.char { color: var(--success-color-medium, #032f62); }
+.prism-code-editor .token.string { color: var(--success-color-medium, #032f62); }
 
 .prism-code-editor .token.keyword,
 .prism-code-editor .token.builtin,
@@ -77,7 +76,6 @@
 /* `config interface 'lan'` — the name after the keyword is the thing being configured, so it takes
  * the strongest text level rather than an accent: it is the line's subject, not its syntax. */
 .prism-code-editor .token.property,
-.prism-code-editor .token.assign-left,
 .prism-code-editor .token.class-name { color: var(--text-color-highest, #24292e); }
 
 .prism-code-editor .token.variable { color: var(--warn-color-high, #e36209); }
@@ -85,12 +83,13 @@
 .prism-code-editor .token.operator,
 .prism-code-editor .token.punctuation { color: var(--text-color-medium, #24292e); }
 
-.prism-code-editor .token.important { color: var(--error-color-medium, #cb2431); font-weight: 700; }
-.prism-code-editor .token.bold { font-weight: 700; }
-.prism-code-editor .token.italic { font-style: italic; }
-
 /* Nesting depth, cycling through the tier's own accents. Six levels because that is what the
- * library emits before it starts again, and a config file rarely reaches three. */
+ * library emits before it starts again, and a config file rarely reaches three — but the level is
+ * counted by matchBrackets over whatever the reader opens, not by our grammars, so the tail stays.
+ *
+ * `char`, `assign-left`, `important`, `bold` and `italic` were painted here until the bash grammar
+ * left: nothing this package ships emits them any more, and a rule for a token that cannot appear
+ * is a rule nobody needs. */
 .prism-code-editor .token.bracket-level-0,
 .prism-code-editor .token.bracket-level-6 { color: var(--primary-color-medium, #0366d6); }
 .prism-code-editor .token.bracket-level-1,

@@ -126,8 +126,13 @@ squeeze() {
 
 # Fail loudly rather than let an unbalanced block ship. String-aware for the same reason the comment
 # stripper is: a brace inside a CSS STRING is not a block.
+#
+# The floor is 8 rules and it is a TRUNCATION check, not a style one: the real guard is that the
+# count does not change across the squeeze. It was 20 until editor.css — a sheet that paints eight
+# token classes and defines a handful of variables — legitimately came in at 17 and failed the
+# build.
 brace_count() {
-	awk -v min="${CSS_MIN_RULES:-20}" '
+	awk -v min="${CSS_MIN_RULES:-8}" '
 		BEGIN { q = "" }
 		{
 			line = $0; n = length(line); i = 1
