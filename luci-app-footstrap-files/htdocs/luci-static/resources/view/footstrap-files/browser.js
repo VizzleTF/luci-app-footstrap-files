@@ -56,6 +56,16 @@ function join(dir, name) {
 	return (dir === '/' ? '' : dir.replace(/\/+$/, '')) + '/' + name;
 }
 
+/* ---- what the path box suggests ---------------------------------------------------------------
+ *
+ * A LISTING PER KEYSTROKE IS A ubus CALL PER KEYSTROKE, so the walk is debounced and the answer for
+ * the directory being typed in is kept: `/etc/co`, `/etc/con`, `/etc/conf` are three keystrokes and
+ * ONE `fs.list('/etc')`. The cap is there because `/usr/bin` is 400 entries on a stand and a
+ * <datalist> of everything under the cursor is a list nobody reads — the filter is a prefix, so
+ * what the cap cuts is always the tail the reader has not typed towards yet. */
+const SUGGEST_DELAY = 150;
+const SUGGEST_MAX = 100;
+
 function parent(path) {
 	const at = path.replace(/\/+$/, '').lastIndexOf('/');
 	return at <= 0 ? '/' : path.slice(0, at);
@@ -335,6 +345,18 @@ return view.extend({
 	anchor: null,
 	order: null,
 
+	/* DECLARED, not left to the first assignment: `suggestToken` is counted with `++`, and `++`
+	 * on an undeclared field is `NaN` — after which `token !== this.suggestToken` is true for the
+	 * answer's own token and every listing is thrown away as stale. The completion came up empty
+	 * on a stand for exactly this, with the ubus call going out and coming back fine. */
+	suggestToken: 0,
+	suggestTimer: null,
+	suggestDir: null,
+	suggestEntries: null,
+	suggestBox: null,
+	suggestPaths: null,
+	suggestAt: -1,
+
 	load() {
 		/* The path lives in the URL fragment, so a browser reload, a bookmark and the back button
 		 * all return to the directory the reader was in. It is read once here and written by
@@ -365,6 +387,11 @@ return view.extend({
 			this.drawListing();
 			dom.content(this.crumbs, this.breadcrumbs());
 			this.pathInput.value = this.path;
+			this.closeSuggest();
+			/* The suggestion cache is a listing too, and an operation just changed one: a folder
+			 * made here would otherwise not be offered until the reader typed their way into
+			 * another directory and back. */
+			this.suggestDir = null;
 		}).catch((err) => fail(_('Cannot read %s').format(this.path), err));
 	},
 
@@ -373,9 +400,198 @@ return view.extend({
 		 * folder boundary at all, and a set of paths that are no longer on screen is a set nobody
 		 * can check before pressing Delete. */
 		if (this.selectMode) { this.selectMode = false; this.selection = new Set(); this.anchor = null; }
-		this.path = path || '/';
+		/* A TRAILING SLASH IS TYPED, not meant. Completing `/etc/config` leaves the box reading
+		 * `/etc/config/` so the next keystroke lists what is inside it, and the reader then presses
+		 * Enter on that. `/etc/config/` and `/etc/config` are the same directory, but only one of
+		 * them makes a breadcrumb, a `join()` and the selection's own paths agree with the listing.
+		 * The root is the one path that IS a slash. */
+		this.path = (path || '/').replace(/(.)\/+$/, '$1');
 		location.hash = '#' + encodeURIComponent(this.path);
 		return this.refresh();
+	},
+
+	/* ---- the path box completes itself ---------------------------------------------------------
+	 *
+	 * A LIST OF THIS PAGE'S OWN, not a <datalist>. The native one was the first shape and it is
+	 * drawn by the BROWSER: system font, system ink, system border, a white popup over a dark page,
+	 * and nothing a stylesheet can reach. Next to a toolbar and a context menu that both take their
+	 * colour from the theme's export tier, it read as a piece of somebody else's application. This
+	 * one is the context menu's own surface — the same `.fsf-menu` class, so there is one place
+	 * where that surface is described and the two cannot drift apart.
+	 *
+	 * What is given up with it is what the browser did for free, and each is answered below: the
+	 * filtering (done here, by prefix), the arrow keys (`onPathKey`), closing on Escape and on a
+	 * click outside (`showSuggest`), and staying above the page without a z-index war (`.fsf-menu`
+	 * is `z-index: 100`, deliberately low enough for a theme's own overlays to cover it).
+	 *
+	 * WHAT IT OFFERS IS DIRECTORIES. The box's button is Go and Go is `go()`, which lists the path
+	 * it is handed — a file there is not a destination, it is `fs.list` failing with "Cannot read".
+	 *
+	 * DOT DIRECTORIES APPEAR ONLY ONCE A DOT IS TYPED, which is the shell's rule and the reason `/`
+	 * does not open with a list led by `.snapshots`. */
+	suggest(value) {
+		const cut = value.lastIndexOf('/');
+		/* Nothing typed that names a directory yet — not even the leading slash. */
+		if (cut < 0) return this.closeSuggest();
+		const dir = cut === 0 ? '/' : value.slice(0, cut);
+		const frag = value.slice(cut + 1);
+
+		/* EVERY ANSWER CARRIES THE KEYSTROKE IT BELONGS TO. Two listings can be in flight over a
+		 * slow router — `/etc` then `/etc/config` — and ubus does not promise the order they come
+		 * back in, so a stale one would repaint the list under a reader who has typed on. */
+		const token = ++this.suggestToken;
+		const draw = (entries) => {
+			if (token !== this.suggestToken) return;
+			this.showSuggest(entries
+				.filter((e) => isDir(e) && e.name.indexOf(frag) === 0 && (frag.charAt(0) === '.' || e.name.charAt(0) !== '.'))
+				.sort((a, b) => L.naturalCompare(a.name, b.name))
+				.slice(0, SUGGEST_MAX)
+				.map((e) => ({ dir: dir, name: e.name, path: join(dir, e.name) })));
+		};
+
+		if (this.suggestDir === dir) return draw(this.suggestEntries || []);
+
+		clearTimeout(this.suggestTimer);
+		this.suggestTimer = setTimeout(L.bind(() => {
+			/* SILENT ON FAILURE, and deliberately: half a path is a path that does not exist yet,
+			 * so `fs.list` refusing it is the normal case here rather than something to tell the
+			 * reader about. `fail()` would put a red banner over the page on the way to typing
+			 * `/etc/config`. */
+			fs.list(dir).then((entries) => {
+				if (token !== this.suggestToken) return;
+				this.suggestDir = dir;
+				this.suggestEntries = entries;
+				draw(entries);
+			}).catch(() => { if (token === this.suggestToken) this.closeSuggest(); });
+		}, this), SUGGEST_DELAY);
+	},
+
+	showSuggest(hits) {
+		this.closeSuggest();
+		if (!hits.length) return;
+		this.suggestPaths = hits.map((h) => h.path);
+		this.suggestAt = -1;
+
+		/* The directory the reader has already typed is context and is drawn quieter; the name is
+		 * what they are choosing. Both come out of a listing, so both are file names — and a name
+		 * is markup unless it is handed to `E()` as an array (the module's own note above `E`). */
+		const box = E('div', {
+			class: 'fsf-menu fsf-suggest', id: 'fsf-suggest', role: 'listbox',
+			/* KEEPS THE FOCUS IN THE BOX. `mousedown` on the list would otherwise blur the input,
+			 * and a blur that closes the list would take the item away before its click arrived. */
+			mousedown: (ev) => ev.preventDefault(),
+		}, hits.map((h, i) => E('button', {
+			class: 'fsf-menu-item', type: 'button', role: 'option', id: 'fsf-suggest-' + i,
+			'aria-selected': 'false',
+			click: L.bind(() => this.pickSuggest(i), this),
+		}, [ E('span', { class: 'fsf-suggest-dir' }, h.dir === '/' ? '/' : h.dir + '/'), h.name ])));
+
+		this.root.appendChild(box);
+		this.suggestBox = box;
+		this.pathInput.setAttribute('aria-expanded', 'true');
+		this.placeSuggest();
+
+		/* Closed by the next thing the reader does that is not this list. `capture`, so a click on
+		 * one of the toolbar's own buttons closes it before that button's handler runs. `contains()`
+		 * takes a Node and a window event's target is not one — asking it of `window` throws inside
+		 * the handler, and the list then never closes at all. */
+		this._closeSuggest = (e) => {
+			if (!(e.target instanceof Node) || (!box.contains(e.target) && e.target !== this.pathInput))
+				this.closeSuggest();
+		};
+		document.addEventListener('pointerdown', this._closeSuggest, true);
+		/* A LIST ANCHORED TO A BOX THAT MOVED IS A LIST POINTING AT NOTHING. The toolbar wraps to
+		 * three rows on a phone, so a resize moves the input rather than just the window. */
+		this._moveSuggest = L.bind(this.placeSuggest, this);
+		window.addEventListener('resize', this._moveSuggest, true);
+		window.addEventListener('scroll', this._moveSuggest, true);
+	},
+
+	/* `position: fixed` and `getBoundingClientRect()` are both in viewport coordinates, so there is
+	 * no scroll arithmetic here — the same reason the rubber band uses them. The list goes ABOVE the
+	 * box when there is not room under it, which on a phone is the normal case: the toolbar sits at
+	 * the top, but the software keyboard takes the bottom half of the window. */
+	placeSuggest() {
+		const box = this.suggestBox;
+		if (!box) return;
+		const r = this.pathInput.getBoundingClientRect();
+		const h = box.getBoundingClientRect().height;
+		const below = window.innerHeight - r.bottom - 8;
+		box.style.width = Math.max(r.width, 180) + 'px';
+		box.style.left = Math.max(8, Math.min(r.left, window.innerWidth - Math.max(r.width, 180) - 8)) + 'px';
+		box.style.top = (h > below && r.top > below ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+	},
+
+	closeSuggest() {
+		if (!this.suggestBox) return;
+		this.suggestBox.remove();
+		this.suggestBox = null;
+		this.suggestPaths = null;
+		this.suggestAt = -1;
+		this.pathInput.setAttribute('aria-expanded', 'false');
+		this.pathInput.removeAttribute('aria-activedescendant');
+		document.removeEventListener('pointerdown', this._closeSuggest, true);
+		window.removeEventListener('resize', this._moveSuggest, true);
+		window.removeEventListener('scroll', this._moveSuggest, true);
+	},
+
+	/* THE SLASH IS PART OF THE PICK. `/etc/config` chosen and left as it is would offer itself again
+	 * as the only completion of itself; with the slash the next listing is of what is inside it, and
+	 * `go()` strips it back off. */
+	pickSuggest(i) {
+		const path = this.suggestPaths && this.suggestPaths[i];
+		if (path == null) return;
+		this.pathInput.value = path + '/';
+		this.closeSuggest();
+		this.pathInput.focus();
+		this.suggest(this.pathInput.value);
+	},
+
+	/* Moving does NOT write into the box: the reader is still typing a path, and replacing what they
+	 * typed on the way past an entry is how an arrow key loses somebody's work. The active item is
+	 * marked instead, and Enter takes it. */
+	moveSuggest(step) {
+		if (!this.suggestBox) return;
+		const items = this.suggestBox.children;
+		const n = items.length;
+		if (!n) return;
+		/* THE RING HAS ONE MORE PLACE THAN THERE ARE ENTRIES: "nothing marked" is a position too,
+		 * and the way back to what the reader actually typed. Counting it in means shifting by one
+		 * — `-1` is slot 0 — and taking the modulus twice, because `%` in JS keeps the sign of the
+		 * left operand and ArrowUp off the top would otherwise land on a negative index. */
+		const at = ((this.suggestAt + 1 + step) % (n + 1) + (n + 1)) % (n + 1) - 1;
+		this.suggestAt = at;
+		for (let i = 0; i < n; i++) items[i].setAttribute('aria-selected', i === at ? 'true' : 'false');
+		if (at < 0) return this.pathInput.removeAttribute('aria-activedescendant');
+		items[at].scrollIntoView({ block: 'nearest' });
+		this.pathInput.setAttribute('aria-activedescendant', items[at].id);
+	},
+
+	onPathKey(ev) {
+		const open = !!this.suggestBox;
+		switch (ev.key) {
+		case 'ArrowDown':
+			ev.preventDefault();
+			return open ? this.moveSuggest(1) : this.suggest(ev.target.value);
+		case 'ArrowUp':
+			if (!open) return;
+			ev.preventDefault();
+			return this.moveSuggest(-1);
+		case 'Enter':
+			if (open && this.suggestAt >= 0) { ev.preventDefault(); return this.pickSuggest(this.suggestAt); }
+			this.closeSuggest();
+			return this.go(ev.target.value);
+		case 'Escape':
+			/* ONLY WHEN THERE IS SOMETHING TO CLOSE. Escape is the key the editor's Find widget and
+			 * the context menu also answer, and swallowing it here with no list open would take it
+			 * away from them. */
+			if (!open) return;
+			ev.preventDefault();
+			ev.stopPropagation();
+			return this.closeSuggest();
+		case 'Tab':
+			return this.closeSuggest();
+		}
 	},
 
 	/* THE BACK BUTTON IS A NAVIGATION TOO. The path lives in the fragment, and a fragment changes
@@ -1668,6 +1884,9 @@ return view.extend({
 
 	drawBar() {
 		if (!this.bar) return;
+		/* THE LIST IS ANCHORED TO THE BOX, and select mode takes the box out of the bar: a list left
+		 * open across the swap would hang under a toolbar that no longer has a path in it. */
+		this.closeSuggest();
 		const b = this.barButton.bind(this);
 
 		/* A FULL CLIPBOARD OWNS THE TOOLBAR, the way select mode does — and for the same measured
@@ -1749,7 +1968,19 @@ return view.extend({
 
 		this.pathInput = E('input', {
 			type: 'text', class: 'cbi-input-text', value: this.path, 'aria-label': _('Path'),
-			keydown: ui.createHandlerFn(this, (ev) => { if (ev.key === 'Enter') return this.go(ev.target.value); }),
+			/* The browser's own completion is turned off: this box has one of its own, over the
+			 * router's filesystem, and the two lists would otherwise fight for the same space. */
+			autocomplete: 'off', spellcheck: 'false', autocapitalize: 'none',
+			role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': 'false', 'aria-controls': 'fsf-suggest',
+			/* `input`, not `keydown`: it fires after the character is in the value, and it is also
+			 * what a paste sends. */
+			input: L.bind((ev) => this.suggest(ev.target.value), this),
+			/* A PLAIN LISTENER, never ui.createHandlerFn: that wrapper is written for buttons and
+			 * begins by doing `t.disabled = true; t.blur()` on the event's currentTarget, before
+			 * the handler runs. On a button that is the spinner; on an input's keydown it disables
+			 * and blurs the field on the FIRST key, before the character is inserted, so the path
+			 * box could not be typed into at all. */
+			keydown: L.bind((ev) => this.onPathKey(ev), this),
 		});
 		this.crumbs = E('div', { class: 'fsf-crumbs' }, this.breadcrumbs());
 		this.status = E('span', { class: 'fsf-status' });

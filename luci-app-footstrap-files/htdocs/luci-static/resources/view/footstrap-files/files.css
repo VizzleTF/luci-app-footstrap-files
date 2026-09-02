@@ -473,6 +473,31 @@
 	background: var(--border-color-low, rgba(0, 0, 0, .12));
 }
 
+/* ---- the path box's completions ---------------------------------------------------------------
+ *
+ * THE CONTEXT MENU'S OWN SURFACE, by carrying `.fsf-menu` as well as this class: a floating list of
+ * choices already has a description in this sheet, and a second copy of it is a second thing to
+ * keep in step with the theme. What this class adds is the two things a completion list needs and
+ * a menu does not — a ceiling on its height, because `/usr/bin` is hundreds of entries, and a width
+ * set from the box it belongs to by the JS.
+ *
+ * It replaced a native <datalist>, which no stylesheet can reach: the browser draws that one in the
+ * system's font and the system's colours, so on a dark page it came up as a white popup under a
+ * dark toolbar. */
+.fsf-suggest {
+	max-height: 15rem;
+	overflow-y: auto;
+	/* The page does not scroll on behind the list once it has hit its own end. */
+	overscroll-behavior: contain;
+}
+
+/* The arrow keys mark an entry rather than writing it into the box, so the mark has to be visible
+ * without the pointer: the same wash `:hover` uses, because it means the same thing. */
+.fsf-suggest .fsf-menu-item[aria-selected="true"] { background: var(--background-color-low, #f5f5f5); }
+
+/* The directory the reader has already typed is context; the name is what they are choosing. */
+.fsf-suggest-dir { color: var(--text-color-medium, #666); }
+
 /* The caption for it, hidden wherever a right button exists. */
 .fsf-hint {
 	display: none;
