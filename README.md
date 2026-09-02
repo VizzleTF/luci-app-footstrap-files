@@ -104,10 +104,10 @@ reaches the page as text only: there is no `innerHTML` here, and CI fails the bu
 ## The editor
 
 [prism-code-editor](https://github.com/jonpyt/prism-code-editor) (MIT) provides the editor and the
-find-and-replace widget, and nothing else: **17 files, 28 KB on flash.** What it does not provide
+find-and-replace widget, and nothing else: **15 files, 26 KB on flash.** What it does not provide
 any more is the colours or the grammars.
 
-**uci has a grammar of its own** (`grammars.js`, 1 KB). It used to be highlighted as shell — the
+**The grammars are ours** (`grammars.js`, 1 KB): uci, shell and json. It used to be highlighted as shell — the
 closest thing the library shipped, and still wrong, because `config interface 'lan'` has no keywords
 in bash and a config file came out as bare words with quoted strings. Prism's own INI grammar was
 worse: measured on a 120-line `/etc/config/network`, it tokenised nine things. The shell grammar

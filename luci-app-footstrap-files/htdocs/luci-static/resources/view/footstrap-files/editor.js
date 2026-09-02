@@ -13,9 +13,9 @@
  * WHAT THE PACKAGE VENDORS, and why each file is there:
  *   index.js + core-*.js        the editor itself
  *   prism/index.js + core-*.js  the tokenizer
- *   prism/languages/json.js     the one grammar worth vendoring — uci and shell are ours, in
- *                               grammars.js, because the library's bash grammar was 5,672 bytes of
- *                               a language nobody writes in /etc/config
+ *   (no grammars at all)        uci, shell and json are ours, in grammars.js: the library's bash
+ *                               was 5,672 bytes of a language nobody writes in /etc/config, and its
+ *                               json dragged a shared patterns module behind it for two regexes
  *   extensions/search           find and replace, which a config file needs and a textarea has not
  *   extensions/matchBrackets    the one thing that makes a nested config readable
  *   layout.css, search.css        the library's own layout and widget styling — the COLOURS are
@@ -59,10 +59,10 @@ function languageFor(path) {
 	return BY_EXT[ext] ?? 'shell';
 }
 
-/* `json` is the only grammar still FETCHED: uci and shell are registered from grammars.js, which
- * comes with the editor. A file whose language is neither is edited with no highlighting rather
- * than with a 404 in the console. */
-const GRAMMARS = new Set([ 'json' ]);
+/* NO GRAMMAR IS FETCHED ANY MORE. uci, shell and json are all registered from grammars.js, which
+ * comes with the editor; a language not among them is edited with no highlighting rather than with
+ * a 404 in the console. */
+const GRAMMARS = new Set([ 'uci', 'shell', 'json' ]);
 
 let _loaded = null;
 
@@ -84,13 +84,8 @@ function loadEditor() {
 	return _loaded;
 }
 
-const _grammars = new Map();
-
-function loadGrammar(lang) {
-	if (!GRAMMARS.has(lang)) return Promise.resolve();
-	if (!_grammars.has(lang))
-		_grammars.set(lang, import(`${V}/prism/languages/${lang}.js`));
-	return _grammars.get(lang);
+function knownLanguage(lang) {
+	return GRAMMARS.has(lang) ? lang : null;
 }
 
 /* THERE IS NO isDark() ANY MORE, and that is the point. It used to ask the theme which way the page
@@ -106,8 +101,8 @@ return baseclass.extend({
 	/* Everything the caller needs: give it a container and a file, get an editor back. The container
 	 * keeps its own stylesheets, so nothing this returns leaks into the document. */
 	open(container, path, text) {
-		const lang = languageFor(path);
-		return Promise.all([ loadEditor(), loadGrammar(lang) ]).then(([ mods ]) => {
+		const lang = knownLanguage(languageFor(path));
+		return loadEditor().then((mods) => {
 			const editor = mods.core.createEditor(container, {
 				language: lang,
 				value: text,

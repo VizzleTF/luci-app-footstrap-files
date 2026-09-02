@@ -53,6 +53,24 @@ const UCI = {
 	variable: /\S+/g,
 };
 
+/* ---- json ----------------------------------------------------------------------------------
+ *
+ * The vendored one was eight regexes and pulled `patterns-DSInPV_c.js` behind it for two of them —
+ * 1,070 bytes for a format whose whole grammar fits here. `property` before `string` because a key
+ * is a string too, and the lookahead is what tells them apart.
+ *
+ * `webmanifest` is not aliased and `//` comments are not matched: JSON has no comments, and a file
+ * on this router that uses them is JSON5, which is not what the tokenizer was asked for. */
+const JSON_ = {
+	property: { pattern: /"(?:\\.|[^\\\n"])*"(?=\s*:)/g, greedy: true },
+	string: { pattern: /"(?:\\.|[^\\\n"])*"/g, greedy: true },
+	number: /-?\b\d+(?:\.\d+)?(?:e[+-]?\d+)?\b/gi,
+	boolean: /\b(?:false|true)\b/g,
+	null: { pattern: /\bnull\b/g, alias: 'keyword' },
+	operator: /:/g,
+	punctuation: /[[\]{},]/g,
+};
+
 /* ---- shell ---------------------------------------------------------------------------------
  *
  * Enough for an init script, a hotplug hook and the `.conf` files that are really shell: the
@@ -63,7 +81,18 @@ const UCI = {
 const SHELL = {
 	shebang: { pattern: /^#!.*/, alias: 'comment' },
 	comment: { pattern: /(?:^|[ \t])#.*/g, greedy: true },
-	string: { pattern: /'[^']*'|"(?:\\.|[^"\\])*"/g, greedy: true },
+	/* SINGLE AND DOUBLE QUOTES ARE DIFFERENT LANGUAGES. `'$HOME'` is four characters; `"$HOME"` is
+	 * an expansion, and a shell script on a router is mostly the second kind — so the double-quoted
+	 * form carries an `inside` that keeps painting variables, while the single-quoted one is one
+	 * flat string. Without this every `"$X"` came out as a plain string and the reader lost the one
+	 * thing worth seeing in `[ "$X" = 1 ]`. */
+	string: { pattern: /'[^']*'/g, greedy: true },
+	dquote: {
+		pattern: /"(?:\\.|[^"\\])*"/g,
+		greedy: true,
+		alias: 'string',
+		inside: { variable: /\$(?:\{[^}\n]*\}|[\w@#?*!$-]+)/g },
+	},
 	variable: /\$(?:\{[^}\n]*\}|[\w@#?*!$-]+)/g,
 	keyword: /\b(?:if|then|elif|else|fi|for|while|until|do|done|case|esac|in|function|return|local|export|readonly|break|continue|exit|trap)\b/g,
 	builtin: /\b(?:echo|printf|test|cd|read|set|unset|eval|exec|shift|source|sleep|kill|logger|uci|ubus|opkg|apk|service|reload_config)\b/g,
@@ -79,5 +108,6 @@ return baseclass.extend({
 	register(languages) {
 		languages.uci = UCI;
 		languages.shell = languages.sh = languages.bash = SHELL;
+		languages.json = JSON_;
 	},
 });

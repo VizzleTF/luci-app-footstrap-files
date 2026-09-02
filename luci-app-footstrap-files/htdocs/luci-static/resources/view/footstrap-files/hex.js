@@ -153,12 +153,11 @@ return baseclass.extend({
 		draw(true);
 		view.focus();
 
+		/* `dirty()` is what a "close without saving" prompt would ask; nothing else here is offered,
+		 * because an accessor nobody calls is a byte on every router that ships it. */
 		return {
 			value: () => data,
 			dirty: () => touched,
-			size: data.length,
-			/* what the status line says: where the caret is, in both bases a reader thinks in */
-			at: () => caret,
 		};
 	},
 

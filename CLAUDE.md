@@ -148,6 +148,14 @@ table markup. The three that cost the most:
     finally has keywords instead of being lexed as a shell script. 7,132 bytes.
   - `themes/github-*.css`: `editor.css` is one sheet on the export tier for both modes, so there is
     no `isDark()` and no swap. 6,492 bytes.
+- **NO GRAMMAR IS VENDORED ANY MORE.** uci, shell and json are all in `grammars.js`; the library's
+  json was eight regexes that dragged `patterns-DSInPV_c.js` behind it for two of them, 1,070 bytes
+  for a format whose whole grammar is twenty lines. What is left under `vendor/` is the editor, the
+  search widget and bracket matching — 15 files.
+- **SINGLE AND DOUBLE QUOTES ARE DIFFERENT LANGUAGES in the shell grammar.** `'$HOME'` is four
+  characters and `"$HOME"` is an expansion, so the double-quoted pattern carries an `inside` that
+  keeps painting variables. Without it every `"$X"` came out as a flat string and `[ "$X" = 1 ]`
+  lost the only part worth seeing.
 - **A NEW GRAMMAR GOES IN `grammars.js`**, not into `vendor/`. It is an ordered object of regexes —
   Prism tries them in turn — registered on `prism.languages` when the editor loads. NO LOOKBEHIND:
   Safari learned it in 16.4 and this package's floor is 15.4, so a name that follows a keyword is
