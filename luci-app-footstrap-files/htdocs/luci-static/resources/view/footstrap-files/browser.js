@@ -143,6 +143,15 @@ function extOf(name) {
 /* A file name can hold anything a filesystem allows, quotes included, and it is used as a selector
  * value when the keyboard moves focus. `CSS.escape` is on every browser this package runs on; the
  * fallback is there because a missing global would throw inside a keydown handler. */
+/* `metaKey || (ctrlKey && !mac)`, never ctrlKey alone: on macOS Ctrl+click is the SYSTEM's context
+ * menu and the click may never arrive, so reading ctrlKey there would be reading a gesture that
+ * means something else entirely. Two callers ask this — a click on a row, and the rubber band. */
+const MAC = /Mac|iPad|iPhone/.test(navigator.platform || navigator.userAgent || '');
+
+function metaOf(ev) {
+	return ev.metaKey || (ev.ctrlKey && !MAC);
+}
+
 function cssEscape(s) {
 	return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&');
 }
@@ -479,6 +488,7 @@ return view.extend({
 			row.addEventListener('click', (ev) => this.activate(ev, entry, full, index));
 			row.addEventListener('keydown', (ev) => this.onKey(ev, entry, full, index));
 			this.longPress(row, entry, full);
+			this.dragSource(row, full);
 			if (dir) this.dropTarget(row, full);
 			rows.push(row);
 		}
@@ -902,29 +912,161 @@ return view.extend({
 	 * `dragenter`/`dragleave` are counted rather than paired: they fire for every child the pointer
 	 * crosses, so a naive pair leaves the highlight on after the pointer has left a row with cells
 	 * in it. */
+	/* TWO KINDS OF DROP LAND ON THE SAME TARGETS. One comes from the operating system and carries
+	 * `dataTransfer.files` — that is an upload, and it is what this page has always done. The other
+	 * comes from a row of this very listing and carries nothing but a promise: `dataTransfer` refuses
+	 * to hand over its data until the drop, so what is being dragged is kept in `this._dragging`
+	 * instead, which is also the only thing that works on a browser that hides custom types during
+	 * `dragover` (Safari does). The MIME type is still set, so dragging a file out to another
+	 * application is not silently empty.
+	 *
+	 * `dest` may be a function because the listing's own target is wired once and has to follow the
+	 * reader into the next directory. */
 	dropTarget(el, dest) {
-		/* The listing's own drop target is wired ONCE and must follow the reader into the next
-		 * directory, so the destination may be a function read at drop time. Wiring it per redraw
-		 * instead stacked a listener per navigation. */
 		const to = () => (typeof dest === 'function' ? dest() : dest);
+		const kind = (ev) => {
+			const types = (ev.dataTransfer && ev.dataTransfer.types) || [];
+			if (Array.prototype.indexOf.call(types, 'Files') >= 0) return 'files';
+			return (this._dragging && this._dragging.length) ? 'paths' : null;
+		};
 		let depth = 0;
 		const lift = () => { if (depth === 0) el.classList.remove('fsf-drop'); };
 		el.addEventListener('dragenter', (ev) => {
-			if (!ev.dataTransfer || Array.prototype.indexOf.call(ev.dataTransfer.types || [], 'Files') < 0) return;
+			if (!kind(ev)) return;
 			ev.preventDefault(); depth++; el.classList.add('fsf-drop');
 		});
 		el.addEventListener('dragover', (ev) => {
-			if (!ev.dataTransfer || Array.prototype.indexOf.call(ev.dataTransfer.types || [], 'Files') < 0) return;
+			const k = kind(ev);
+			if (!k) return;
 			ev.preventDefault();
-			ev.dataTransfer.dropEffect = 'copy';
+			/* the cursor says what will happen: a copy from outside, a move from inside */
+			ev.dataTransfer.dropEffect = (k === 'files') ? 'copy' : 'move';
 		});
 		el.addEventListener('dragleave', () => { depth = Math.max(0, depth - 1); lift(); });
 		el.addEventListener('drop', (ev) => {
-			if (!ev.dataTransfer || !ev.dataTransfer.files || !ev.dataTransfer.files.length) return;
+			const k = kind(ev);
+			if (!k) return;
 			ev.preventDefault();
 			ev.stopPropagation();				/* a row's drop is not also the listing's drop */
 			depth = 0; lift();
-			this.uploadFiles(ev.dataTransfer.files, to());
+			if (k === 'files') return this.uploadFiles(ev.dataTransfer.files, to());
+			const paths = this._dragging || [];
+			this._dragging = null;
+			return this.moveInto(paths, to());
+		});
+	},
+
+	/* WHAT A ROW HANDS OVER WHEN IT IS DRAGGED. Dragging something that is already ticked takes the
+	 * whole selection — that is what every file manager does, and it is the only way to move six
+	 * files with one gesture. Dragging something that is NOT ticked takes just it, and leaves the
+	 * selection alone: the reader pointed at one thing. */
+	dragSource(el, full) {
+		el.setAttribute('draggable', 'true');
+		el.addEventListener('dragstart', (ev) => {
+			const paths = this.selection.has(full) ? Array.from(this.selection) : [ full ];
+			this._dragging = paths;
+			if (ev.dataTransfer) {
+				ev.dataTransfer.effectAllowed = 'move';
+				/* for anything outside this page; inside, `_dragging` is what is read */
+				try { ev.dataTransfer.setData('text/plain', paths.join('\n')); } catch (e) {}
+			}
+			/* An `<a>` inside the name drags itself by default, and its ghost is the link rather
+			 * than the row. Letting the row's own dragstart run afterwards is what makes the whole
+			 * row the thing being moved. */
+			ev.stopPropagation();
+		});
+		el.addEventListener('dragend', () => { this._dragging = null; });
+	},
+
+	/* `mv -n`, the same command a paste runs, with the two refusals a drag can walk into and a
+	 * paste cannot: a directory dropped on itself, and a directory dropped inside its own subtree —
+	 * `mv /etc /etc/config` would take the source away with it. */
+	moveInto(paths, dest) {
+		const list = (paths || []).filter((p) => {
+			if (parent(p) === dest) return false;			/* already there: nothing to do */
+			if (p === dest) return false;
+			return dest.indexOf(p + '/') !== 0;			/* into its own subtree */
+		});
+		if (!list.length) return Promise.resolve();
+		this.busy(_('Moving %d item(s)…').format(list.length));
+		return list.reduce((chain, p) => chain.then(() => {
+			const name = p.split('/').pop();
+			return fs.stat(join(dest, name)).then(() => true, () => false).then((exists) => {
+				if (exists)
+					return fail(_('%s was not moved').format(name),
+						_('Something with that name is already here, and nothing is overwritten.'));
+				return fs.exec('/bin/mv', [ '-n', '--', p, dest ])
+					.then((r) => { if (r.code !== 0) fail(_('Cannot move %s').format(name), r.stderr || 'exit %d'.format(r.code)); })
+					.catch((err) => fail(_('Cannot move %s').format(name), err));
+			});
+		}), Promise.resolve()).then(() => {
+			this.busy('');
+			if (this.selectMode) this.exitSelect(); else this.selection = new Set();
+			return this.refresh();
+		});
+	},
+
+	/* ---- the rubber band -------------------------------------------------------------------------
+	 *
+	 * Press on empty space and drag: every row the rectangle touches is selected, the way it works
+	 * on every desktop. Ctrl or Shift adds to what was already ticked; a plain drag replaces it.
+	 *
+	 * MOUSE ONLY, and that is not a shortcut. On a touch screen the same gesture on empty space is
+	 * how the listing is scrolled, and a band that stole it would leave the reader unable to reach
+	 * the bottom of /usr/bin. `pointerdown` carries `pointerType`, which is the question actually
+	 * being asked — a width query would call a laptop with a touchscreen a phone.
+	 *
+	 * The band is `position: fixed` in viewport coordinates, so it needs no arithmetic against the
+	 * scroll position, and it is compared with `getBoundingClientRect()`, which is in the same
+	 * frame. */
+	rubberBand(el) {
+		el.addEventListener('pointerdown', (ev) => {
+			if (ev.pointerType !== 'mouse' || ev.button !== 0) return;
+			/* a row, a tile, a button or a link answers for itself */
+			if (ev.target.closest('.fsf-row, .fsf-tile, button, a, input, label')) return;
+
+			const x0 = ev.clientX, y0 = ev.clientY;
+			const additive = ev.shiftKey || metaOf(ev);
+			const before = additive ? new Set(this.selection) : new Set();
+			let band = null;
+
+			const move = (e) => {
+				const dx = Math.abs(e.clientX - x0), dy = Math.abs(e.clientY - y0);
+				/* 4px of travel before anything is drawn: a click that wobbles is still a click */
+				if (!band && dx < 4 && dy < 4) return;
+				if (!band) {
+					band = E('div', { class: 'fsf-band' });
+					document.body.appendChild(band);
+					if (!this.selectMode) this.enterSelect();
+				}
+				const box = {
+					left: Math.min(x0, e.clientX), top: Math.min(y0, e.clientY),
+					right: Math.max(x0, e.clientX), bottom: Math.max(y0, e.clientY),
+				};
+				band.style.left = box.left + 'px';
+				band.style.top = box.top + 'px';
+				band.style.width = (box.right - box.left) + 'px';
+				band.style.height = (box.bottom - box.top) + 'px';
+
+				this.selection = new Set(before);
+				for (const node of this.listing.querySelectorAll('[data-path]')) {
+					const r = node.getBoundingClientRect();
+					if (r.right >= box.left && r.left <= box.right && r.bottom >= box.top && r.top <= box.bottom)
+						this.selection.add(node.getAttribute('data-path'));
+				}
+				this.paintSelection();
+			};
+
+			const up = () => {
+				window.removeEventListener('pointermove', move, true);
+				window.removeEventListener('pointerup', up, true);
+				if (band) band.remove();
+				/* A band that selected nothing and started from nothing leaves the mode as it found
+				 * it: an empty select bar over an untouched listing is a mode nobody asked for. */
+				if (band && !this.selection.size && !before.size) this.exitSelect();
+			};
+			window.addEventListener('pointermove', move, true);
+			window.addEventListener('pointerup', up, true);
 		});
 	},
 
@@ -1130,8 +1272,7 @@ return view.extend({
 		/* A button, a link's own affordances and the tick each answer for themselves. */
 		if (ev.target.closest && ev.target.closest('button, input, select, textarea')) return;
 
-		const mac = /Mac|iPad|iPhone/.test(navigator.platform || navigator.userAgent || '');
-		const meta = ev.metaKey || (ev.ctrlKey && !mac);
+		const meta = metaOf(ev);
 		const range = ev.shiftKey;
 
 		if (!this.selectMode && !meta && !range) {
@@ -1282,6 +1423,7 @@ return view.extend({
 				E('span', { class: 'fsf-tile-meta' }, dir ? '' : fmtSize(entry)),
 			]);
 			this.longPress(tile, entry, full);
+			this.dragSource(tile, full);
 			if (dir) this.dropTarget(tile, full);
 			out.push(tile);
 		}
@@ -1421,6 +1563,7 @@ return view.extend({
 		/* Wired once, on the node that outlives every redraw: the whole listing takes a drop for the
 		 * directory being shown, and its empty space carries the directory's own menu. */
 		this.dropTarget(this.listing, () => this.path);
+		this.rubberBand(this.listing);
 		this.listing.addEventListener('contextmenu', (ev) => {
 			if (ev.target.closest('.fsf-row, .fsf-tile')) return;
 			this.openMenu(ev, null, null);

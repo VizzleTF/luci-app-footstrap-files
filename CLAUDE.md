@@ -55,6 +55,21 @@ table markup. The three that cost the most:
   range — and using either turns it on so the bar appears. The pivot rule is Explorer's: a plain or
   Ctrl+click MOVES the anchor, Shift+click does not, and each Shift+click recomputes from the anchor
   rather than extending the last result.
+- **A RUBBER BAND IS MOUSE-ONLY, and it needs a floor to start on.** Press on empty space and drag
+  selects what the rectangle touches, with Ctrl/Shift adding to what was ticked — `pointerdown` is
+  filtered on `pointerType === 'mouse'`, because on a touch screen that same gesture is how the
+  listing scrolls. The band is `position: fixed` on `document.body` and compared against
+  `getBoundingClientRect()`, so both are in viewport coordinates and no scroll arithmetic is needed.
+  A table ends where its last row does — measured, the listing box and the table box were the same
+  279px — so `.fsf-listing` carries `min-height: min(50vh, 26rem)`: without that floor there is
+  nowhere to begin a band except on a row, where a press means dragging that row instead.
+- **A DRAG CARRIES `this._dragging`, not `dataTransfer`.** The data in a `DataTransfer` cannot be
+  read during `dragover` (and Safari hides custom types entirely), so the paths being dragged live
+  in a field and the MIME type is set only for dropping outside the page. `dropTarget` tells the two
+  apart: `dataTransfer.files` non-empty is an upload from the OS, otherwise it is a move from this
+  listing. Dragging something already ticked takes the whole selection; dragging something else
+  takes just it. `moveInto` refuses a directory dropped on itself or inside its own subtree — `mv
+  /etc /etc/config` would take the source with it.
 - **`metaKey || (ctrlKey && !mac)`, never `ctrlKey` alone.** On macOS Ctrl+click is the system's
   context menu and the `click` may never arrive.
 - **iOS Safari sends no `contextmenu` at all**, so the long-press timer is the only way into the menu

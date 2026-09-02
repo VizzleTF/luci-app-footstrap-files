@@ -360,6 +360,32 @@
 .fsf-tile-name { overflow-wrap: anywhere; line-height: 1.25; }
 .fsf-tile-meta { color: var(--text-color-medium, #666); font-size: .75rem; }
 
+/* THE LISTING KEEPS A FLOOR UNDER ITSELF. A table ends exactly where its last row does — measured,
+ * the listing box and the table box were the same 279px — so a directory with four files left the
+ * reader nowhere to START a rubber band except on a row, where a press means dragging that row
+ * instead. The floor is what every desktop file manager has under its list: empty space that
+ * belongs to the listing.
+ *
+ * `min()` rather than a fixed height: on a phone 26rem of empty space below three files is a page
+ * of nothing to scroll past. */
+.fsf-listing { min-height: min(50vh, 26rem); }
+
+/* THE RUBBER BAND, drawn in viewport coordinates on `document.body` — `position: fixed` so it needs
+ * no arithmetic against the page's scroll, and `pointer-events: none` so the drag underneath it
+ * keeps reaching the rows. It exists only while the button is down. */
+.fsf-band {
+	position: fixed;
+	z-index: 50;
+	pointer-events: none;
+	border: 1px solid var(--primary-color-medium, #0069d9);
+	border-radius: 2px;
+	background: rgba(0, 105, 217, .12);
+	background: color-mix(in srgb, var(--primary-color-medium, #0069d9) 12%, transparent);
+}
+
+/* A row being dragged over. The same class the upload drop already used, so a move and an upload
+ * land on the same affordance — what changes is the cursor, which the drag itself sets. */
+
 /* ---- the context menu ---------------------------------------------------------------------------
  *
  * Positioned from the pointer and clamped to the window by the JS. `z-index: 100` and no higher:
