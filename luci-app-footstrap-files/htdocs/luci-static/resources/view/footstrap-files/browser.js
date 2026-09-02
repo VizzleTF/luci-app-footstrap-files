@@ -199,6 +199,8 @@ const BAR = {
 	/* a luggage tag: renaming is giving the thing a different label, and an I-beam next to the
 	 * pencil above read as a second Edit */
 	rename: [ 'M12 3H5a2 2 0 0 0-2 2v7l9 9 9-9-9-9z', 'M7.5 7.5h.01' ],
+	/* the editor's own: a magnifier, drawn at the toolbar's weight so it sits with Save and Close */
+	find: [ 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z', 'M20 20l-4.35-4.35' ],
 };
 
 /* One size down from the toolbar's: a row is 39px of icon and five buttons already, and the actions
@@ -218,7 +220,7 @@ const ICON = {
 	link(size, toDir) {
 		return svg('svg', { class: 'fsf-icon', viewBox: '0 0 24 24', width: size, height: size, 'aria-hidden': 'true' }, [
 			svg('path', {
-				fill: INK.link, opacity: '.85',
+				fill: INK.link,
 				d: toDir
 					? 'M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z'
 					: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm0 2 4.5 4.5H14V4z',
@@ -227,18 +229,34 @@ const ICON = {
 		]);
 	},
 
+	/* DRAWN AS AN OUTLINE, NOT AS A WASHED-OUT FILL. The sheet used to be the family's ink at 28%
+	 * opacity, which is a colour nobody chose: on the theme's own surfaces it came out as a pale
+	 * smudge, and in dark mode a 28% wash of an already-light ink is barely there at all. An outline
+	 * keeps the family's colour at full strength, matches the toolbar's stroked icons, and leaves the
+	 * label reading against the page's own background rather than against a tint of itself.
+	 *
+	 * A directory stays solid on purpose: it is the thing the reader is aiming at, and the contrast
+	 * between a filled folder and an outlined sheet is what makes the two scannable at 16px. */
 	file(size, name) {
 		const ext = extOf(name || '');
 		const ink = INK[FAMILY[ext]] || 'currentColor';
 		const kids = [
-			svg('path', { fill: ink, opacity: ext ? '.28' : '.55', d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z' }),
-			svg('path', { fill: ink, d: 'M14 2v4.5a1.5 1.5 0 0 0 1.5 1.5H20z' }),
+			svg('path', {
+				fill: 'none', stroke: ink, 'stroke-width': '1.6',
+				'stroke-linejoin': 'round', 'stroke-linecap': 'round',
+				d: 'M14 2.8H6.5a1.7 1.7 0 0 0-1.7 1.7v15a1.7 1.7 0 0 0 1.7 1.7h11a1.7 1.7 0 0 0 1.7-1.7V8z',
+			}),
+			svg('path', {
+				fill: 'none', stroke: ink, 'stroke-width': '1.6',
+				'stroke-linejoin': 'round', 'stroke-linecap': 'round',
+				d: 'M14 2.8V8h5.2',
+			}),
 		];
 		/* The label is drawn INSIDE the sheet rather than beside it: beside it, a long name and a
 		 * long extension compete for the same line and the tile grows a second row. */
 		if (ext && size >= 24)
 			kids.push(svg('text', {
-				x: '12', y: '17', fill: ink, 'text-anchor': 'middle',
+				x: '12', y: '17.5', fill: ink, 'text-anchor': 'middle',
 				'font-size': ext.length > 3 ? '5.5' : '7', 'font-weight': '700',
 				'font-family': 'ui-monospace, monospace',
 			}, [ ext.toUpperCase() ]));
@@ -552,6 +570,20 @@ return view.extend({
 				E('div', { class: 'right fsf-modal-actions' }, [
 					status,
 					' ',
+					/* FIND IS AN ICON AND IT IS HERE BECAUSE CTRL+F IS NOT REACHABLE ON A PHONE. The
+					 * widget the editor carries is opened by Ctrl+F, F3 and Cmd+F — three gestures a
+					 * touch keyboard does not have — so on a phone and on a tablet the find-and-replace
+					 * this package pays 4 KB to vendor could not be opened at all. An icon rather than a
+					 * word: the two buttons beside it are the ones the reader came for, and a third
+					 * caption competes with them at the width where the row already wraps.
+					 *
+					 * Left of Save, so the destructive-to-leftmost order of the row is unchanged. */
+					E('button', {
+						class: 'btn cbi-button fsf-find',
+						title: _('Find and replace'), 'aria-label': _('Find and replace'),
+						click: ui.createHandlerFn(this, () => this.toggleFind()),
+					}, barIcon(BAR.find)),
+					' ',
 					E('button', {
 						class: 'btn cbi-button cbi-button-action',
 						click: ui.createHandlerFn(this, () => this.save(path, box, status)),
@@ -566,14 +598,61 @@ return view.extend({
 
 			/* Escape closes it, the way a dialog is expected to — `ui.showModal` binds nothing of its
 			 * own — and the handler is dropped again in closeEditor(), because a listener that
-			 * outlives the dialog would close the NEXT one on the first Escape. */
-			this._escEdit = (ev) => { if (ev.key === 'Escape') this.closeEditor(); };
+			 * outlives the dialog would close the NEXT one on the first Escape.
+			 *
+			 * WHILE THE SEARCH WIDGET IS OPEN, ESCAPE CLOSES THE WIDGET — and this handler is what
+			 * does it, rather than stepping aside for the library. The library binds its own Escape
+			 * to the editor's `wrapper`, and the widget is mounted as an OVERLAY beside that wrapper,
+			 * so a keypress from the Find field never passes through it: measured on the 25.12 stand,
+			 * the event reached window, document (capture and bubble) and the editor's root with
+			 * nothing prevented, and the widget stayed open. Merely returning here — the first shape
+			 * of this guard — therefore left Escape doing NOTHING at all: the widget did not close
+			 * and neither did the dialog, and the reader was stuck with a widget only the mouse could
+			 * dismiss.
+			 *
+			 * Closing the dialog on that same key is what must not happen: it would throw away an
+			 * unsaved file while the reader was typing in the Find field. */
+			this._escEdit = (ev) => {
+				if (ev.key !== 'Escape') return;
+				if (this.findOpen()) {
+					/* the widget's own close() puts the caret back in the file */
+					ev.preventDefault();
+					ev.stopPropagation();
+					return this.toggleFind();
+				}
+				this.closeEditor();
+			};
 			document.addEventListener('keydown', this._escEdit, true);
 
 			return editor.open(box, path, typeof text === 'string' ? text : '')
 				.then((ed) => { this.editing = ed; })
 				.catch((err) => { this.closeEditor(); fail(_('Cannot open the editor'), err); });
 		}).catch((err) => fail(_('Cannot read %s').format(path), err));
+	},
+
+	/* The widget the editor was given in editor.js. It is attached by `addExtensions`, so it exists
+	 * only once the editor's promise has resolved: every caller here tolerates its absence rather
+	 * than assuming the file finished loading. */
+	findWidget() {
+		return this.editing && this.editing.extensions && this.editing.extensions.searchWidget;
+	},
+
+	/* IS IT OPEN — asked of the DOM, because the library keeps `isOpen` to itself. `open()` puts the
+	 * widget's container into the editor as an overlay and `close()` removes it, so the element
+	 * being connected is the same fact under a different name. */
+	findOpen() {
+		const w = this.findWidget();
+		return !!(w && w.element && w.element.isConnected);
+	},
+
+	/* A TOGGLE, not an open: the button stays under the reader's finger while the widget is up, and
+	 * a second tap on it has to mean the obvious thing. `open(true)` selects the find field, which
+	 * is what raises the keyboard on a phone — the whole reason this button exists. */
+	toggleFind() {
+		const w = this.findWidget();
+		if (!w) return;
+		if (this.findOpen()) w.close();
+		else w.open(true);
 	},
 
 	closeEditor() {

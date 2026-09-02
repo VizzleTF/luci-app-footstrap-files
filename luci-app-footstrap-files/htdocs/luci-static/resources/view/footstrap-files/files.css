@@ -141,7 +141,40 @@
  * Scoped by a class of this package's own, so nothing here reaches another app's dialog. */
 .modal.fsf-modal-dialog { width: min(64rem, 94vw); max-width: min(64rem, 94vw); }
 
-.fsf-modal-actions { margin-top: .75rem; }
+/* A FLEX ROW, not `text-align: right` on a line of inline-blocks. The buttons sat on the text
+ * baseline of the status span, so the icon button — the one whose box is set by its own content
+ * rather than by a word — landed a pixel low and looked misaligned next to Save and Close
+ * (measured: 621px against 620px). A flex row aligns the boxes themselves and the pixel goes away.
+ * `wrap` because at the phone's width four controls do not fit on one line. */
+.fsf-modal-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: .5rem;
+	margin-top: .75rem;
+}
+
+/* FIND IS AN ICON IN A ROW OF WORDS, so it needs the box the words get for free: LuCI sizes a button
+ * by its content, and a button whose only child is a 20px <svg> comes out 20px wide next to a 60px
+ * "Save". inline-flex centres the icon inside whatever padding the theme gives the button, and the
+ * minimum is what keeps it a target rather than a glyph — 2.25rem under a mouse, and 2.75rem (44px,
+ * the size Apple's HIG asks for; WCAG 2.5.8 asks 24 CSS px) wherever the pointer is coarse, which is
+ * the case this button exists for.
+ *
+ * `pointer: coarse` and not a width query: a tablet with a keyboard attached is a wide screen with a
+ * finger on it, and a narrow desktop window is not a touch screen. */
+.fsf-modal-actions .btn.fsf-find {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 2.25rem;
+	min-height: 2.25rem;
+}
+
+@media (pointer: coarse) {
+	.fsf-modal-actions .btn.fsf-find { min-width: 2.75rem; min-height: 2.75rem; }
+}
 
 .fsf-editor-status { color: var(--text-color-medium, #666); margin-inline-end: .5rem; }
 
@@ -169,6 +202,58 @@
 	height: 100%;
 	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
+
+/* ---- the editor's search widget ------------------------------------------------------------------
+ *
+ * The widget is prism-code-editor's, and its own sheet (vendor/pce/search.css) styles it for a page
+ * that leaves plain `<input>` and `<button>` alone. LuCI does not: a theme sizes every input on the
+ * page, and inside a widget whose rows are 1.5em tall the result is a field 32px high in a 20px box
+ * — the Replace field spilling over its own border, with the theme's 3px focus ring drawn around the
+ * spill (measured on the stand: height 32px, box-shadow 0 0 0 3px). What is undone here is exactly
+ * that: the widget's fields go back to being the widget's.
+ *
+ * Scoped under `.fsf-editor`, so this reaches only the editor this package opens. Nothing here
+ * restyles the widget — every value is the one vendor/pce/search.css already asks for. */
+.fsf-editor .prism-search input {
+	height: auto;
+	min-height: 0;
+	margin: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	line-height: 1.5;
+}
+
+/* The ring belongs to `.pce-input:focus-within`, which the library draws as a box-shadow on the
+ * FIELD's container. A second ring on the input inside it is the theme answering the same question
+ * twice, and it is the one that overflows. */
+.fsf-editor .prism-search input:focus,
+.fsf-editor .prism-search input:focus-visible {
+	outline: none;
+	box-shadow: none;
+}
+
+/* One face for the whole widget. The library asks for Arial on the two fields and lets everything
+ * else inherit — which, inside an editor set in a monospace stack, put "Replace" and "All" in a
+ * different face and a different width from the field beside them. */
+.fsf-editor .prism-search,
+.fsf-editor .prism-search .pce-input,
+.fsf-editor .prism-search .pce-match-count {
+	font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* A theme's minimum sizes are meant for a page's own buttons; here they push a 1.2em icon button
+ * into a row built around 1.5em. The library sets every one of these explicitly, so the reset is
+ * back to its values rather than to nothing. */
+.fsf-editor .prism-search button {
+	min-width: 0;
+	min-height: 0;
+	margin: 0;
+	line-height: 1.5;
+}
+
+.fsf-editor .prism-search .pce-input button { margin-left: 1px; }
 
 /* ---- the card stack -----------------------------------------------------------------------------
  *
