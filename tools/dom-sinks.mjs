@@ -25,7 +25,7 @@ for (const name of readdirSync(VIEW).filter((f) => f.endsWith('.js'))) {
 	const src = readFileSync(`${VIEW}/${name}`, 'utf8');
 	const ast = acorn.parse(src, ACORN);
 
-	let callsE = false, definesE = false, windowE = 0, modalTitles = [];
+	let callsE = false, definesE = false, windowE = 0, modalTitles = [], dynamicTags = [];
 	const walk = (n) => {
 		if (!n || typeof n.type !== 'string') return;
 		if (n.type === 'FunctionDeclaration' && n.id && n.id.name === 'E') definesE = true;
@@ -35,7 +35,17 @@ for (const name of readdirSync(VIEW).filter((f) => f.endsWith('.js'))) {
 		    && n.property && n.property.name === 'E') windowE++;
 		if (n.type === 'CallExpression') {
 			const c = n.callee;
-			if (c.type === 'Identifier' && c.name === 'E') callsE = true;
+			if (c.type === 'Identifier' && c.name === 'E') {
+				callsE = true;
+				/* THE TAG IS A SINK OF ITS OWN. `dom.create` does
+				 *     else if (html.charCodeAt(0) === 60) { elem = this.parse(html); }
+				 * — a first argument beginning with `<` is PARSED AS HTML, whatever the wrapper does
+				 * with the children. Every tag in this package is a literal; this keeps it that way,
+				 * because the day one is built from a name is the day the wrapper stops being
+				 * enough. */
+				if (n.arguments.length && n.arguments[0].type !== 'Literal')
+					dynamicTags.push(n.loc.start.line);
+			}
 			if (c.type === 'MemberExpression' && c.property && c.property.name === 'showModal'
 			    && n.arguments.length && n.arguments[0].type !== 'ArrayExpression')
 				modalTitles.push(n.loc.start.line);
@@ -54,6 +64,8 @@ for (const name of readdirSync(VIEW).filter((f) => f.endsWith('.js'))) {
 		fail(`${name}: ${windowE} call(s) to window.E — exactly one belongs here, inside the wrapper`);
 	if (!definesE && windowE)
 		fail(`${name}: reaches window.E directly, around the wrapper`);
+	for (const line of dynamicTags)
+		fail(`${name}:${line}: E() called with a tag that is not a literal — dom.create parses a first argument starting with '<'`);
 	for (const line of modalTitles)
 		fail(`${name}:${line}: ui.showModal() title is not an array — it is rendered with dom.create('h4', {}, title)`);
 }
