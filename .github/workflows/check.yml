@@ -130,14 +130,16 @@ jobs:
           set -eu
           view=dist/root/www/luci-static/resources/view/footstrap-files
           src=luci-app-footstrap-files/htdocs/luci-static/resources/view/footstrap-files
-          for f in browser.js editor.js files.css; do
+          for f in browser.js editor.js grammars.js files.css editor.css; do
             a=$(wc -c < "$src/$f"); b=$(wc -c < "$view/$f")
             [ "$b" -lt "$a" ] || { echo "$f: staged $b bytes against $a in the source - not minified" >&2; exit 1; }
             printf '%s: %s -> %s\n' "$f" "$a" "$b"
           done
-          # The vendored CSS ships verbatim — it comes minified out of the library's own build.
+          # The vendored CSS ships verbatim — it comes minified out of the library's own build. Its
+          # two colour themes are gone: editor.css replaces both, off the theme's export tier.
+          cmp "$src/vendor/pce/layout.css" "$view/vendor/pce/layout.css"
           cmp "$src/vendor/pce/search.css" "$view/vendor/pce/search.css"
-          cmp "$src/vendor/pce/themes/github-dark.css" "$view/vendor/pce/themes/github-dark.css"
+          test ! -d "$view/vendor/pce/themes"
           test -f "$view/vendor/pce/LICENSE"
           echo "vendored CSS byte-identical, licence present"
 

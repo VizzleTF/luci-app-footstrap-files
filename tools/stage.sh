@@ -74,7 +74,7 @@ node "$ROOT/tools/minify-vendor.mjs" "$VIEW/vendor/pce"
 
 # Only OUR stylesheet. The vendored CSS beside it (layout.css, search.css, the two themes) already
 # comes minified out of prism-code-editor's own build.
-sh "$ROOT/tools/minify-css.sh" "$VIEW/files.css"
+sh "$ROOT/tools/minify-css.sh" "$VIEW/files.css" "$VIEW/editor.css"
 
 # 3. The version. CI passes the tag; a working tree takes the newest tag so a local `owfeed build`
 #    produces something plausible rather than nothing. `-r1` is what PKG_RELEASE:=1 puts on every

@@ -1,5 +1,6 @@
 'use strict';
 'require baseclass';
+'require view.footstrap-files.grammars as grammars';
 
 /* The editor, assembled by hand out of prism-code-editor rather than taken from its `setups`.
  *
@@ -12,11 +13,19 @@
  * WHAT THE PACKAGE VENDORS, and why each file is there:
  *   index.js + core-*.js        the editor itself
  *   prism/index.js + core-*.js  the tokenizer
- *   prism/languages/<lang>.js   ONE grammar per format this router actually has
- *   languages/<lang>.js         that grammar's indent and comment rules (2 lines each)
+ *   prism/languages/json.js     the one grammar worth vendoring — uci and shell are ours, in
+ *                               grammars.js, because the library's bash grammar was 5,672 bytes of
+ *                               a language nobody writes in /etc/config
  *   extensions/search           find and replace, which a config file needs and a textarea has not
  *   extensions/matchBrackets    the one thing that makes a nested config readable
- *   layout.css, search.css, themes/github-*.css
+ *   layout.css, search.css        the library's own layout and widget styling — the COLOURS are
+ *                               ours, in editor.css, off the theme's export tier
+ *
+ * WHAT IS DELIBERATELY NOT HERE: `languages/<lang>.js`, the library's indent and comment rules.
+ * They write into `languageMap`, and in this build NOBODY READS IT — the reader is
+ * `extensions/commands`, which we do not load. Measured on the stand before removing them: Enter
+ * inside a `{` produced a bare newline and Ctrl+/ did nothing, exactly as it does now. Four files
+ * of two lines each pulled 3,970 bytes of shared and jsx-shared machinery behind them.
  *
  * Its stylesheets go into the editor's own SHADOW ROOT, so `<head>` is untouched and the theme's
  * cascade layer order cannot be inverted from here (footstrap docs/css.md). That is the property
@@ -28,29 +37,32 @@
  * overwritten by the next app that vendors a different version of the same thing. */
 const V = L.resource('view/footstrap-files/vendor/pce');
 
-/* uci is not INI and not shell, but shell is the closest grammar that ships: quoted strings, `#`
- * comments and bare words all match. Measured on /etc/config/network with Prism's `ini`, which is
- * what the name suggests: 9 tokens in 120 lines, because INI wants `key=value` and `[section]`
- * while uci writes `config interface 'lan'`. A grammar of our own is a later change, not a reason
- * to ship the wrong one now. */
+/* UCI HAS ITS OWN GRAMMAR NOW. It used to be highlighted as shell, which was the closest thing the
+ * library shipped and still wrong: `config interface 'lan'` has no keywords in bash, so a config
+ * file came out as bare words with quoted strings. Prism's `ini` was worse — measured on
+ * /etc/config/network, 9 tokens in 120 lines, because INI wants `key=value` and `[section]`.
+ *
+ * `ini` and `nginx` had grammars of their own and no longer do: a router that has nginx at all is
+ * rare, `.ini` rarer still, and both are closer to shell than either was to uci. */
 const BY_EXT = {
-	json: 'json', conf: 'bash', sh: 'bash', ini: 'ini', nginx: 'nginx',
+	json: 'json', sh: 'shell', conf: 'shell', ini: 'shell', nginx: 'shell',
 };
 
 const BY_PATH = [
-	[ /^\/etc\/config\//, 'bash' ],
-	[ /^\/etc\/nginx\//, 'nginx' ],
+	[ /^\/etc\/config\//, 'uci' ],
+	[ /^\/etc\/(?:init|rc|hotplug)/, 'shell' ],
 ];
 
 function languageFor(path) {
 	for (const [ re, lang ] of BY_PATH) if (re.test(path)) return lang;
 	const ext = (path.split('/').pop().split('.').pop() || '').toLowerCase();
-	return BY_EXT[ext] ?? 'bash';
+	return BY_EXT[ext] ?? 'shell';
 }
 
-/* The grammars vendored with this package. A file whose language is not among them is edited with
- * no highlighting rather than with a 404 in the console. */
-const GRAMMARS = new Set([ 'bash', 'ini', 'json', 'nginx' ]);
+/* `json` is the only grammar still FETCHED: uci and shell are registered from grammars.js, which
+ * comes with the editor. A file whose language is neither is edited with no highlighting rather
+ * than with a 404 in the console. */
+const GRAMMARS = new Set([ 'json' ]);
 
 let _loaded = null;
 
@@ -64,7 +76,11 @@ function loadEditor() {
 		import(`${V}/prism/index.js`),
 		import(`${V}/extensions/search/index.js`),
 		import(`${V}/extensions/matchBrackets/index.js`),
-	]).then(([ core, prism, search, brackets ]) => ({ core, prism, search, brackets }));
+	]).then(([ core, prism, search, brackets ]) => {
+		/* ours, registered against the tokenizer the library just brought in */
+		grammars.register(prism.languages);
+		return { core, prism, search, brackets };
+	});
 	return _loaded;
 }
 
@@ -73,34 +89,18 @@ const _grammars = new Map();
 function loadGrammar(lang) {
 	if (!GRAMMARS.has(lang)) return Promise.resolve();
 	if (!_grammars.has(lang))
-		_grammars.set(lang, Promise.all([
-			import(`${V}/prism/languages/${lang}.js`),
-			import(`${V}/languages/${lang}.js`),
-		]));
+		_grammars.set(lang, import(`${V}/prism/languages/${lang}.js`));
 	return _grammars.get(lang);
 }
 
-/* ASK THE THEME, NOT THE OPERATING SYSTEM. `prefers-color-scheme` reports the OS, and a reader who
- * forces dark on a light desktop would get a light editor on a dark page — the bug four apps in
- * footstrap's own survey have (docs/luci-app-styling-guide.md §4). The three attribute dialects are
- * asked in order, and the luminance of `body` is the fallback that works on a theme that stamps
- * none of them. */
-function isDark() {
-	const root = document.documentElement;
-	if (root.dataset.darkmode) return root.dataset.darkmode === 'true';
-	if (root.dataset.theme) return root.dataset.theme === 'dark';
-	if (root.dataset.bsTheme) return root.dataset.bsTheme === 'dark';
-	const m = window.getComputedStyle(document.body).backgroundColor.match(/\d+/g);
-	return (m && m.length >= 3)
-		? (0.299 * +m[0] + 0.587 * +m[1] + 0.114 * +m[2]) / 255 < 0.5
-		: false;
-}
-
-/* The editor is TOLD which way the page is, rather than left to pick: a hardcoded editor theme is
- * how mosdns and ssclash end up with a permanently black editor on a light page. */
-function themeHref() {
-	return `${V}/themes/github-${isDark() ? 'dark' : 'light'}.css`;
-}
+/* THERE IS NO isDark() ANY MORE, and that is the point. It used to ask the theme which way the page
+ * was — `data-darkmode`, then `data-theme`, then `data-bs-theme`, then the luminance of `body` — in
+ * order to choose between the library's two GitHub sheets. editor.css replaces both with one file
+ * whose colours come from the theme's own export tier, so the theme has already answered the
+ * question by the time the editor loads, and it keeps answering it when the reader switches mode
+ * with the dialog open. Nothing here has to know.
+ *
+ */
 
 return baseclass.extend({
 	/* Everything the caller needs: give it a container and a file, get an editor back. The container
@@ -126,7 +126,8 @@ return baseclass.extend({
 		return [
 			E('link', { rel: 'stylesheet', href: `${V}/layout.css` }),
 			E('link', { rel: 'stylesheet', href: `${V}/search.css` }),
-			E('link', { rel: 'stylesheet', href: themeHref() }),
+			/* OURS, not the library's: one sheet for both modes, on the export tier */
+			E('link', { rel: 'stylesheet', href: L.resource('view/footstrap-files/editor.css') }),
 		];
 	},
 
