@@ -1,0 +1,14 @@
+{
+  "name": "luci-app-footstrap-files-tooling",
+  "private": true,
+  "description": "Build and check tooling only. NOTHING here is shipped: the package payload is browser JS, one stylesheet and the vendored editor, and a router never runs node. terser and acorn are what tools/minify-js.mjs uses to pre-minify the staged JS; the OpenWrt SDK path needs neither.",
+  "scripts": {
+    "t0": "sh tools/t0.sh",
+    "stage": "sh tools/stage.sh",
+    "i18n": "luci-app-footstrap-files/update-po.sh --check"
+  },
+  "devDependencies": {
+    "acorn": "^8.15.0",
+    "terser": "^5.49.2"
+  }
+}

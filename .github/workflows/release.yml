@@ -41,6 +41,12 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
+          cache: npm
+      # terser and acorn: tools/stage.sh minifies the staged payload with them, and refuses to build
+      # without them rather than quietly shipping the sources. --ignore-scripts because a dev
+      # dependency's lifecycle script has no business running in the job that produces the released
+      # bytes.
+      - run: npm ci --ignore-scripts
 
       - uses: owfeed/owfeed/setup@v0.5.1
         with:

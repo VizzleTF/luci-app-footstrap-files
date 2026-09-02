@@ -34,48 +34,39 @@ mkdir -p "$STAGE/www" "$DIST/scripts"
 cp -a "$SRC/htdocs/." "$STAGE/www/"
 cp -a "$SRC/root/." "$STAGE/"
 
-# 2. The JS, through the SAME jsmin the OpenWrt buildbot runs — pinned by commit and checksummed in
-#    luci-upstream.pin, exactly as tools/t0.sh does it. Without this owfeed would ship the sources
-#    verbatim: 67 KB instead of 26 KB on a router's flash, and different bytes from what the SDK
-#    path produces for the same commit.
+# 2. The JS and the CSS, minified over the STAGED copy — never over the checkout.
 #
-#    The CSS is shipped VERBATIM and that is deliberate — the Makefile sets LUCI_MINIFY_CSS:=0
-#    because csstidy drops this sheet's whole `@layer theme` block while exiting 0. owfeed runs no
-#    csstidy, but shipping the same bytes down both paths is the point.
-# shellcheck disable=SC1091
-. "$SRC/luci-upstream.pin"
+#    terser, not jsmin: jsmin strips comments and whitespace only, while identifiers are wire bytes
+#    and uhttpd serves /www with no compression. Measured on this tree, jsmin gets 71,650 bytes down
+#    to 33,559 and terser to 29,016 — and the sheet, which csstidy is not allowed near (see
+#    LUCI_MINIFY_CSS:=0 in the Makefile), goes 17,174 -> 5,149 through tools/minify-css.sh.
+#
+#    THIS STEP USED TO DO NOTHING AT ALL. It globbed `resources/fs-cmd*.js`, a path copied from the
+#    sibling package, matched no file, and `[ -f ] || continue` swallowed it: v0.1.0 shipped all
+#    three files verbatim (65,776 + 6,018 + 17,174 bytes, read back out of the released .ipk). The
+#    minifiers below fail the build when they are handed nothing, which is what makes that silence
+#    impossible to repeat.
+#
+#    The SDK path is NOT changed and still runs jsmin over the sources (LUCI_MINIFY_JS is left at
+#    its default) — a buildbot has no node. The two paths therefore ship different bytes for the
+#    same commit, and both are gated: tools/t0.sh parses the jsmin output, tools/minify-js.mjs
+#    parses its own and refuses to write a file whose module seam it changed.
+VIEW="$STAGE/www/luci-static/resources/view/footstrap-files"
+[ -d "$VIEW" ] || { echo "stage: nothing staged at $VIEW" >&2; exit 1; }
 
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
-
-jsmin_src=''
-for c in "${LUCI_SRC:-}/modules/luci-base/src/jsmin.c" "$ROOT/../luci/modules/luci-base/src/jsmin.c"; do
-	[ -f "$c" ] && { jsmin_src="$c"; break; }
-done
-if [ -z "$jsmin_src" ]; then
-	jsmin_src="$work/jsmin.c"
-	curl -sfL --proto '=https' --proto-redir '=https' \
-		"https://raw.githubusercontent.com/openwrt/luci/$LUCI_PIN/modules/luci-base/src/jsmin.c" \
-		-o "$jsmin_src" || { echo "stage: cannot fetch jsmin.c" >&2; exit 1; }
-fi
-echo "$JSMIN_SHA256  $jsmin_src" | sha256sum -c - >/dev/null 2>&1 || {
-	echo "stage: jsmin.c does not match luci-upstream.pin ($LUCI_PIN)" >&2
+command -v node >/dev/null 2>&1 || { echo "stage: node not found — it is what minifies the payload" >&2; exit 1; }
+[ -d "$ROOT/node_modules/terser" ] || {
+	echo "stage: terser is missing — run \`npm ci\` (or \`npm install\`) in $ROOT first" >&2
 	exit 1
 }
-cc -O2 -o "$work/jsmin" "$jsmin_src"
 
-for f in "$STAGE"/www/luci-static/resources/fs-cmd*.js; do
-	[ -f "$f" ] || continue
-	"$work/jsmin" < "$f" > "$f.min"
-	# jsmin eats the rest of a file after a regex literal that follows `return` or `=>`, and EXITS
-	# 0. Parsing the output is the only check that catches it; a release must never be the first
-	# place that runs.
-	node -e "new Function(require('fs').readFileSync('$f.min','utf8'))" 2>/dev/null || {
-		echo "stage: $(basename "$f") does not parse after jsmin — refusing to package it" >&2
-		exit 1
-	}
-	mv "$f.min" "$f"
-done
+# `vendor/` is skipped inside minify-js.mjs: it is third-party ES-module code, shipped verbatim,
+# already minified by its own build, and jsmin/terser are not ours to point at it.
+node "$ROOT/tools/minify-js.mjs" "$VIEW"
+
+# Only OUR stylesheet. The vendored CSS beside it (layout.css, search.css, the two themes) comes
+# minified out of prism-code-editor's own build.
+sh "$ROOT/tools/minify-css.sh" "$VIEW/files.css"
 
 # 3. The version. CI passes the tag; a working tree takes the newest tag so a local `owfeed build`
 #    produces something plausible rather than nothing. `-r1` is what PKG_RELEASE:=1 puts on every
