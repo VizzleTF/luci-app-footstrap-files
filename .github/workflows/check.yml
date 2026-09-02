@@ -23,7 +23,7 @@ jobs:
     name: parse, and parse again after jsmin
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       # tools/t0.sh fetches jsmin.c at the commit in luci-upstream.pin and verifies its sha256
       # before compiling it: the minifier that runs on the OpenWrt buildbot is the one that decides
       # whether a module still parses after a build, so the gate runs the real thing rather than a
@@ -34,7 +34,7 @@ jobs:
     name: the catalogue is current and complete
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: install gettext
         run: sudo apt-get update && sudo apt-get install -y gettext
       # An uncompiled _() falls through to its English msgid and renders in English with nothing
@@ -42,14 +42,22 @@ jobs:
       - run: ./update-po.sh --check
         working-directory: luci-app-footstrap-files
 
+      # A catalogue is ITS OWN PACKAGE, for every language and not only for the one that exists
+      # today. Nothing fails when a language is half-wired: `po/de/` would appear, stage.sh would
+      # write dist/i18n-de, owfeed's hand-written package list would package neither, and German
+      # would simply never reach a router with the build still green.
+      - run: tools/i18n-packages.sh
+
   package:
     name: the package's load-bearing lines
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      # csstidy, which luci.mk runs by default, predates @layer by fifteen years and drops the
-      # wrapper together with every rule inside it.
+      # csstidy, which luci.mk runs by default, is fifteen years older than the syntax this sheet
+      # uses (color-mix(), :has()) and drops what it cannot parse while exiting 0. The owfeed path
+      # minifies the sheet with tools/minify-css.sh instead, which is string-aware and checks its
+      # own rule count.
       - name: LUCI_MINIFY_CSS:=0
         run: grep -qF 'LUCI_MINIFY_CSS:=0' luci-app-footstrap-files/Makefile
 
@@ -97,11 +105,73 @@ jobs:
           print('menu ok')
           PY
 
+  payload:
+    name: the staged payload is minified
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        # tools/stage.sh falls back to `git describe` for the version, and a shallow clone has no
+        # tags to describe from.
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      # The whole of what owfeed packages, built here so a release is not the first place it runs.
+      - run: tools/stage.sh
+
+      # THE GATE THIS JOB EXISTS FOR. The staging step used to glob a path copied from the sibling
+      # package, match nothing, and skip minification in silence — v0.1.0 shipped 65,776 bytes of
+      # commented source. Sizes, not a "did it run" flag: a minifier can also be handed the file and
+      # write it back unchanged.
+      - name: the shipped bytes are smaller than the sources
+        run: |
+          set -eu
+          view=dist/root/www/luci-static/resources/view/footstrap-files
+          src=luci-app-footstrap-files/htdocs/luci-static/resources/view/footstrap-files
+          for f in browser.js editor.js files.css; do
+            a=$(wc -c < "$src/$f"); b=$(wc -c < "$view/$f")
+            [ "$b" -lt "$a" ] || { echo "$f: staged $b bytes against $a in the source - not minified" >&2; exit 1; }
+            printf '%s: %s -> %s\n' "$f" "$a" "$b"
+          done
+          # The vendored editor ships verbatim, and a minifier pointed at it would be a change to
+          # somebody else's code.
+          cmp "$src/vendor/pce/index.js" "$view/vendor/pce/index.js"
+          echo "vendor is byte-identical"
+
+      # The app package's own tree carries no catalogue, and every language has the pair owfeed
+      # packages into `luci-i18n-footstrap-files-<lang>`. Read off what was actually staged, which
+      # is the tree the packages are cut from.
+      - name: the catalogues are staged apart from the app
+        run: |
+          set -eu
+          if find dist/root \( -name '*.lmo' -o -name '*.po' \) | grep -q .; then
+            echo "a catalogue was staged into the app package" >&2; exit 1
+          fi
+          for d in luci-app-footstrap-files/po/*/; do
+            lang=$(basename "$d")
+            [ "$lang" = templates ] && continue
+            test -d "dist/i18n-$lang" || { echo "dist/i18n-$lang was not staged" >&2; exit 1; }
+            test -f "dist/po-$lang/$lang/footstrap-files.po" || { echo "dist/po-$lang is missing the catalogue" >&2; exit 1; }
+            echo "$lang: staged as its own package"
+          done
+
+      # A LuCI resource file is evaluated inside a function wrapper, so this is the parse the router
+      # does. minify-js.mjs checks its own output too; this checks what actually lands in the tree.
+      - name: the staged modules still parse
+        run: |
+          set -eu
+          for f in dist/root/www/luci-static/resources/view/footstrap-files/*.js; do
+            node -e "new Function(require('fs').readFileSync('$f','utf8'))"
+            echo "$(basename "$f") parses"
+          done
+
   markup:
     name: file names are data
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       # This page renders names taken off a filesystem. E() sets text; innerHTML would make a file
       # called `<img onerror=…>` executable markup, and the whole XSS story of this package is that
       # there is no such sink.

@@ -79,6 +79,10 @@ for f in "$PKG"/root/etc/uci-defaults/* "$PKG"/update-po.sh tools/*.sh; do
 	ok $? "  $(basename "$f") parses"
 done
 
+# ---- one package per language -----------------------------------------------
+tools/i18n-packages.sh >/dev/null 2>&1
+ok $? "  every language is its own package"
+
 # ---- the probes -------------------------------------------------------------
 for f in tools/*.mjs; do
 	[ -f "$f" ] || continue
