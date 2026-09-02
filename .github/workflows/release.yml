@@ -91,15 +91,11 @@ jobs:
       usign-key: ${{ secrets.FOOTSTRAP_USIGN_KEY }}
     with:
       owfeed-version: v0.5.1
-      # Writes dist/install.sh and release-notes.md. The installer is an asset because
-      # raw.githubusercontent.com is rate-limited for the very user who most needs it, and because a
-      # signed copy is the only one checkable before it runs as root; the notes fill the release page
-      # and are not an asset, hence a path beside dist/ rather than in it.
+      # NO installer asset and no notes file here, unlike the theme: this package is installed from
+      # the feed or with `apk add` on a router that already has one, so there is nothing to fetch
+      # before a shell can run it, and a file nobody reads is one more thing to sign and keep true.
+      # The tag's own message fills the release page.
       #
-      # A WORKSPACE PATH, not `${{ runner.temp }}`: at job level a reusable workflow's `with:` may
-      # only read github/needs/vars/inputs, and naming `runner` there fails the whole run at STARTUP
-      # with zero jobs and no log to read.
-      pre-release: sh tools/stage-release.sh
-      sign-also: install.sh
-      notes-file: release-notes.md
+      # `verify-with` holds the job to the public half of the author's key, which is the whole point
+      # of signing here: the feed pins the same key for luci-theme-footstrap.
       verify-with: release.pub
