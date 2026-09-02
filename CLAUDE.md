@@ -63,6 +63,15 @@ table markup. The three that cost the most:
   A table ends where its last row does — measured, the listing box and the table box were the same
   279px — so `.fsf-listing` carries `min-height: min(50vh, 26rem)`: without that floor there is
   nowhere to begin a band except on a row, where a press means dragging that row instead.
+- **A CLICK ON EMPTY SPACE CLEARS THE SELECTION** — no band was drawn, so it was a click, and the
+  reader pointed at nothing. Ctrl or Shift held is the exception: that is somebody adding to a
+  selection and missing, and throwing the selection away would be the unkind reading.
+- **A MOVE ASKS FIRST, naming the destination.** A drag is the easiest gesture here to make by
+  accident — a press that travels four pixels — and it moves files as root. `confirm()`, the same
+  as a delete, because "move 3 items" without saying where is not a question anybody can answer.
+- **`..` IS A DROP TARGET** and not a drag source: moving something up is as ordinary as moving it
+  down, and without it the clipboard was the only way out of a directory. It carries no `data-path`,
+  so the band and the selection never see it.
 - **A DRAG CARRIES `this._dragging`, not `dataTransfer`.** The data in a `DataTransfer` cannot be
   read during `dragover` (and Safari hides custom types entirely), so the paths being dragged live
   in a field and the MIME type is set only for dropping outside the page. `dropTarget` tells the two

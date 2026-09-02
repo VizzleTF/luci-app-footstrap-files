@@ -402,8 +402,12 @@ return view.extend({
 			class: 'btn cbi-button' + (cls ? ' ' + cls : ''), title: label, 'aria-label': label,
 			click: ui.createHandlerFn(this, fn),
 		}, barIcon(BAR[icon], ROW_ICON));
-		if (this.path !== '/')
-			rows.push(E('tr', { class: 'tr fsf-row cbi-rowstyle-1' }, [
+		if (this.path !== '/') {
+			/* `..` IS A DROP TARGET TOO. Moving something up is as ordinary as moving it down, and
+			 * without this the only way out of a directory was the clipboard. It is not a drag
+			 * SOURCE — there is nothing there to pick up — and it carries no `data-path`, so the
+			 * rubber band and the selection never see it. */
+			const up = E('tr', { class: 'tr fsf-row cbi-rowstyle-1' }, [
 				E('td', { class: 'td fsf-name col-10', 'data-title': _('Name') }, [
 					E('span', { class: 'fsf-nameline' }, [
 						ICON.dir(ICON_LIST), E('a', { href: this.href(parent(this.path)) }, '..'),
@@ -414,7 +418,10 @@ return view.extend({
 				E('td', { class: 'td', 'data-title': _('Permissions') }, ''),
 				E('td', { class: 'td', 'data-title': _('Modified') }, ''),
 				E('td', { class: 'td', 'data-title': _('Actions') }, ''),
-			]));
+			]);
+			this.dropTarget(up, parent(this.path));
+			rows.push(up);
+		}
 
 		this.order = [];
 		for (const entry of sortEntries(this.entries || [], this.sortKey, this.sortDir)) {
@@ -1071,6 +1078,11 @@ return view.extend({
 			return dest.indexOf(p + '/') !== 0;			/* into its own subtree */
 		});
 		if (!list.length) return Promise.resolve();
+		/* ASKED, LIKE A DELETE IS. A drag is the easiest gesture on this page to make by accident —
+		 * a press that travels a few pixels on the way to a click — and it moves files as root. The
+		 * question names the destination, because "move 3 items" without saying where is not a
+		 * question anybody can answer. */
+		if (!confirm(_('Move %d item(s) to %s?').format(list.length, dest))) return Promise.resolve();
 		this.busy(_('Moving %d item(s)…').format(list.length));
 		return list.reduce((chain, p) => chain.then(() => {
 			const name = p.split('/').pop();
@@ -1144,9 +1156,19 @@ return view.extend({
 				window.removeEventListener('pointermove', move, true);
 				window.removeEventListener('pointerup', up, true);
 				if (band) band.remove();
+				/* A CLICK ON EMPTY SPACE CLEARS THE SELECTION, which is what it does in Explorer and
+				 * in Finder: the reader pointed at nothing, so nothing is what is selected. No band
+				 * was drawn, so this was a click and not a drag.
+				 *
+				 * Ctrl or Shift held means the reader is adding to a selection and missed — leaving
+				 * it alone is the kinder reading of a slip. */
+				if (!band) {
+					if (!additive && (this.selection.size || this.selectMode)) this.exitSelect();
+					return;
+				}
 				/* A band that selected nothing and started from nothing leaves the mode as it found
 				 * it: an empty select bar over an untouched listing is a mode nobody asked for. */
-				if (band && !this.selection.size && !before.size) this.exitSelect();
+				if (!this.selection.size && !before.size) this.exitSelect();
 			};
 			window.addEventListener('pointermove', move, true);
 			window.addEventListener('pointerup', up, true);
