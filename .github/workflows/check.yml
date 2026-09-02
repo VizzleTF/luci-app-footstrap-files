@@ -245,12 +245,16 @@ jobs:
       - name: no innerHTML, no insertAdjacentHTML, no document.write
         run: |
           set -eu
+          # COMMENTS ARE NOT CODE. The wrapper in each module quotes luci-base's own
+          # `node.innerHTML = …` to explain what it exists to close; a grep that cannot tell the
+          # difference fails on the fix for the bug it is looking for.
           if grep -rnE --exclude-dir=vendor 'innerHTML|insertAdjacentHTML|document\.write' \
-               luci-app-footstrap-files/htdocs/luci-static/resources; then
+               luci-app-footstrap-files/htdocs/luci-static/resources \
+               | grep -vE ':[0-9]+:[[:space:]]*(\*|//|/\*)'; then
             echo "A name from the filesystem must never reach a markup sink." >&2
             exit 1
           fi
-          echo "none found"
+          echo "none found in code"
 
       # The vendored tree keeps its licence beside it, or this package redistributes MIT code with
       # nothing saying so.

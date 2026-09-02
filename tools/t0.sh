@@ -80,8 +80,16 @@ for f in "$PKG"/root/etc/uci-defaults/* "$PKG"/update-po.sh tools/*.sh; do
 done
 
 # ---- the markup sink --------------------------------------------------------
-node tools/dom-sinks.mjs >/dev/null 2>&1
-ok $? "  every module owns its E(), no modal title is a bare string"
+#
+# Needs acorn, which is a devDependency: on a bare checkout this is skipped rather than failed, and
+# CI runs it in the lint job where `npm ci` has run. A gate that cannot tell "not installed" from
+# "violated" teaches people to ignore it.
+if [ -d node_modules/acorn ]; then
+	node tools/dom-sinks.mjs >/dev/null 2>&1
+	ok $? "  every module owns its E(), no modal title is a bare string"
+else
+	printf 'SKIP  every module owns its E()  (no node_modules — run npm ci)\n'
+fi
 
 # ---- the stylesheets' contract ----------------------------------------------
 node tools/css-contract.mjs >/dev/null 2>&1
