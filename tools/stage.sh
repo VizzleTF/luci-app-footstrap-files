@@ -64,8 +64,16 @@ command -v node >/dev/null 2>&1 || { echo "stage: node not found — it is what 
 # already minified by its own build, and jsmin/terser are not ours to point at it.
 node "$ROOT/tools/minify-js.mjs" "$VIEW"
 
-# Only OUR stylesheet. The vendored CSS beside it (layout.css, search.css, the two themes) comes
-# minified out of prism-code-editor's own build.
+# The vendored editor, as ES modules. Its dist comes off rollup with code splitting and no
+# minifier — JSDoc, indentation and all — which is 74 KB of JS where terser reaches 30 KB. The
+# checkout keeps upstream's bytes so a diff against the next release stays readable; the router gets
+# the same code with the whitespace gone. Every file's import and export names are compared before
+# and after, because 25 modules import each other by name and a moved seam would only show up on a
+# router.
+node "$ROOT/tools/minify-vendor.mjs" "$VIEW/vendor/pce"
+
+# Only OUR stylesheet. The vendored CSS beside it (layout.css, search.css, the two themes) already
+# comes minified out of prism-code-editor's own build.
 sh "$ROOT/tools/minify-css.sh" "$VIEW/files.css"
 
 # 3. The version. CI passes the tag; a working tree takes the newest tag so a local `owfeed build`

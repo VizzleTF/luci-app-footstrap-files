@@ -102,8 +102,10 @@ reaches the page as text only: there is no `innerHTML` here, and CI fails the bu
 [prism-code-editor](https://github.com/jonpyt/prism-code-editor) (MIT), assembled by hand rather
 than through its ready-made setup: that setup pulls a barrel module which imports **every** grammar
 the project ships — 263 files, measured. Vendored here are the core, four grammars (`bash`, `ini`,
-`json`, `nginx`), find-and-replace and bracket matching: **89 KB on flash, 30 files**, of which 22
-are fetched when a file is opened.
+`json`, `nginx`), find-and-replace and bracket matching — 30 files, of which 22 are fetched when a
+file is opened. The library publishes its dist unminified, so staging runs terser over it as well:
+**89 KB of vendored JS and CSS leaves as 44 KB**, with every module's import and export names
+compared before and after.
 
 `/etc/config/*` is highlighted as shell rather than as INI, and that is not a shortcut: Prism's INI
 grammar wants `key=value` and `[section]`, while uci writes `config interface 'lan'`. Measured on a
@@ -124,8 +126,9 @@ owfeed build                               # dist/noarch/*.apk (25.12) + dist/al
 ```
 
 Staging minifies what ships: terser over the view's own modules and `tools/minify-css.sh` over the
-stylesheet, taking the page's own JS and CSS from 88,968 bytes to 34,153. The vendored editor is
-left byte-for-byte alone, and nothing in the checkout is rewritten.
+stylesheet, and terser again over the vendored editor as ES modules. The whole payload goes from
+125,374 bytes to 81,441 — the page's own three files from 96,934 to 35,804, the editor's 25 modules
+from 74,142 to 30,219. Nothing in the checkout is rewritten.
 
 An OpenWrt SDK build works too — the `Makefile` is an ordinary `luci.mk` package, and there jsmin
 does the minifying because a buildbot has no node — but nothing released here comes from one: this

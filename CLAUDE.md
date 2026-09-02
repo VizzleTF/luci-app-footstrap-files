@@ -22,7 +22,7 @@ release is not optional.
 | `htdocs/luci-static/resources/view/footstrap-files/browser.js` | the page: listing, toolbar, operations, the editor panel |
 | `htdocs/luci-static/resources/view/footstrap-files/editor.js` | the editor, assembled by hand out of prism-code-editor |
 | `htdocs/luci-static/resources/view/footstrap-files/files.css` | unlayered and `.fsf-*`-scoped; colour from the export tier with literal fallbacks, spacing and radius as plain values |
-| `htdocs/luci-static/resources/view/footstrap-files/vendor/pce/` | third-party, vendored verbatim, **not ours to edit or minify** |
+| `htdocs/luci-static/resources/view/footstrap-files/vendor/pce/` | third-party, vendored verbatim — **not ours to edit**; minified on the way out (see below) |
 | `root/usr/share/luci/menu.d/`, `root/usr/share/rpcd/acl.d/` | the menu node and the grant |
 
 ## Read this before touching the styling
@@ -121,12 +121,20 @@ table markup. The three that cost the most:
   on disk against the packages declared for them, in both directions, and runs in T0 and in CI.
 - **The payload is minified on the way out, never in the checkout.** `tools/stage.sh` runs
   `minify-js.mjs` (terser) over the view's own modules and `minify-css.sh` over `files.css`:
-  88,968 bytes of source become 34,153. `vendor/` is excluded by name in both — third-party code,
-  already minified by its own build. The SDK path still uses jsmin, which is what T0 gates, so the
-  two paths ship different bytes for one commit on purpose. The step this replaced globbed
+  125,374 bytes of payload become 81,441. The SDK path still uses jsmin, which is what T0 gates, so
+  the two paths ship different bytes for one commit on purpose. The step this replaced globbed
   `resources/fs-cmd*.js`, a path copied from the sibling package, matched nothing and skipped
   minification in silence: v0.1.0 shipped the commented sources. CI now compares staged bytes
   against source bytes for all three files.
+- **The vendored editor is minified too — as ES modules, and only in `dist/`.** prism-code-editor
+  publishes its dist through rollup with code splitting and NO minifier: JSDoc, indentation, line
+  breaks, 74,142 bytes of JS where terser reaches 30,219. The checkout keeps upstream's bytes so a
+  diff against the next release stays readable. THE RISK IS THE MODULE SEAM: 25 files import each
+  other by name (`import { a as languages } from "./core-DEy9UQvI.js"`), and a mangled export would
+  leave a module importing something nobody exports, with nothing saying so until a reader opened a
+  file on a router — so `tools/minify-vendor.mjs` compares every file's import and export lists
+  before and after and refuses to write one whose seam moved, and CI re-checks the same thing
+  against the staged tree. The vendored CSS is already minified by that build and ships verbatim.
 
 ## Commands
 
