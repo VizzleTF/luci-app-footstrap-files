@@ -15,7 +15,7 @@ package's own `.fsf-*` classes, unlayered and without one `!important`.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/tiles-dark.png">
-  <img src="assets/readme/tiles-light.png" width="100%" alt="The tile view of a directory: two folders, a symlink drawn as a folder with an arrow, and one sheet per file family — GZ and BIN in amber, JSON, YAML and SH in green, PNG in blue — each with its extension on the sheet and its size under the name.">
+  <img src="assets/readme/tiles-light.png" width="100%" alt="The tile view of a directory: the toolbar across the top with the path, Go, Up, Refresh, New folder, New file, Copy, Move, Delete, Upload and the list and tile buttons; breadcrumbs under it; then the tiles — folders, a symlink drawn as a folder with an arrow, and one sheet per file family with its extension on it and its size under the name. A right click has opened the context menu: Edit, Download, Rename, Properties, Select, Select all, Copy, Move, Delete.">
 </picture>
 
 <details>

@@ -36,16 +36,26 @@ const OUT = new URL('../assets/readme/', import.meta.url).pathname;
 const DEMO = '/tmp/fsf-demo';
 mkdirSync(OUT, { recursive: true });
 
-/* A directory that shows what the icons are FOR: one of each family, a directory, and a symlink.
- * Sizes are written so the listing does not read as a row of zeroes. */
+/* A directory that shows what the icons are FOR: one of each family, two directories, and a symlink.
+ * Sizes are written so the listing does not read as a grid of zeroes, and there are enough tiles for
+ * three rows: the menu is opened over a tile in the FIRST row and unfolds downwards, and a grid
+ * shorter than the menu would have it cropped by the screenshot's own bounds. */
 const MAKE = [
-	`mkdir -p ${DEMO}/config`,
+	`mkdir -p ${DEMO}/config ${DEMO}/backups`,
 	`dd if=/dev/urandom of=${DEMO}/backup.tar.gz bs=1k count=412 2>/dev/null`,
 	`dd if=/dev/urandom of=${DEMO}/firmware.bin bs=1k count=7680 2>/dev/null`,
 	`dd if=/dev/urandom of=${DEMO}/topology.png bs=1k count=63 2>/dev/null`,
+	`dd if=/dev/urandom of=${DEMO}/luci-app-example.ipk bs=1k count=48 2>/dev/null`,
+	`dd if=/dev/urandom of=${DEMO}/floorplan.jpg bs=1k count=204 2>/dev/null`,
 	`head -c 2400 /etc/config/network > ${DEMO}/nikki.yaml`,
 	`head -c 860 /etc/config/firewall > ${DEMO}/watchdog.sh`,
 	`head -c 1200 /etc/config/dhcp > ${DEMO}/leases.json`,
+	`head -c 640 /etc/config/dhcp > ${DEMO}/dnsmasq.conf`,
+	`head -c 1500 /etc/config/wireless > ${DEMO}/radio.ini`,
+	`head -c 320 /etc/config/system > ${DEMO}/collect.lua`,
+	`head -c 980 /etc/config/firewall > ${DEMO}/rules.py`,
+	`printf 'checked the ruleset on 12/03\n' > ${DEMO}/notes`,
+	`head -c 220 /etc/banner > ${DEMO}/motd`,
 	`ln -sf /etc/config ${DEMO}/etc-config`,
 ];
 
@@ -53,7 +63,7 @@ const browser = await chromium.launch();
 
 for (const dark of [ false, true ]) {
 	const suffix = dark ? 'dark' : 'light';
-	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2 });
+	const ctx = await browser.newContext({ viewport: { width: 1024, height: 900 }, deviceScaleFactor: 2 });
 	/* the theme reads the reader's choice from localStorage; `false` is not the same as unset —
 	 * unset means "follow the system", which a headless browser reports as light anyway */
 	await ctx.addInitScript(([ d ]) => {
@@ -79,7 +89,16 @@ for (const dark of [ false, true ]) {
 	await page.goto(`${BASE}/admin/system/footstrap-files#${encodeURIComponent(DEMO)}`, { waitUntil: 'domcontentloaded' });
 	await page.waitForSelector('.fsf-grid', { timeout: 15000 });
 	await page.waitForTimeout(1500);
-	await page.locator('.fsf-listing').screenshot({ path: `${OUT}tiles-${suffix}.png` });
+	/* The toolbar and the context menu belong in this picture: they are the two things a reader
+	 * cannot guess from a grid of icons. The menu is opened the way a mouse opens it, from the
+	 * tile's own corner, so it unfolds downwards over the rows below rather than off the crop. */
+	const tile = await page.locator('.fsf-tile', { hasText: 'dnsmasq.conf' }).first().boundingBox();
+	await page.locator('.fsf-tile', { hasText: 'dnsmasq.conf' }).first().dispatchEvent('contextmenu', {
+		clientX: Math.round(tile.x + tile.width - 8), clientY: Math.round(tile.y + tile.height - 8),
+	});
+	await page.waitForSelector('.fsf-menu', { timeout: 5000 });
+	await page.waitForTimeout(500);
+	await page.locator('.fsf').screenshot({ path: `${OUT}tiles-${suffix}.png` });
 	console.log(`assets/readme/tiles-${suffix}.png`);
 
 	/* ---- the editor, with the search widget open over highlighted uci ---- */
