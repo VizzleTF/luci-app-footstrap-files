@@ -19,6 +19,36 @@
  * three operations ubus has no method for (mkdir, move, chmod) are `fs.exec` with an ARGUMENT ARRAY,
  * never a shell string: a file called `; reboot;` is then an argument and not a command. */
 
+/* ---- E(), WITH THE MARKUP SINK CLOSED ---------------------------------------------------------
+ *
+ * THIS PACKAGE'S CENTRAL CLAIM WAS FALSE UNTIL THIS SHIM. luci-base's `E()` is
+ * `L.dom.create(...)`, which ends in `dom.append(node, children)`:
+ *
+ *     if (Array.isArray(children)) { … node.appendChild(document.createTextNode(`${children[i]}`)); }
+ *     …
+ *     else if (children !== null && children !== undefined) { node.innerHTML = `${children}`; }
+ *
+ * Only the ARRAY branch makes text. A bare string child is assigned to `innerHTML` — so
+ * `E('span', {}, entry.name)` was a markup sink, and a file called `a<img src=q onerror=…>.txt`
+ * executed its own name in the admin session the moment its directory was listed. Verified on the
+ * stand before this shim went in: `window.__pwned` came back true, with this page's ACL
+ * (`file: {"/*": [list, read, write, exec]}`) behind whatever ran.
+ *
+ * The CI grep for `innerHTML` could never have caught it: the sink is inside luci-base, not here.
+ *
+ * The fix is one function rather than a hundred call sites, because a rule that has to be
+ * remembered at every call is a rule that will be forgotten at one of them. This SHADOWS the global
+ * `E` for the whole module, so every existing and future call goes through it: a primitive last
+ * argument is wrapped in an array — the branch that builds a text node — while an object (the
+ * attribute table, a DOM node, an array of children) passes through untouched. */
+function E() {
+	const args = Array.prototype.slice.call(arguments);
+	const last = args.length - 1;
+	if (last >= 1 && args[last] != null && typeof args[last] !== 'object' && typeof args[last] !== 'function')
+		args[last] = [ args[last] ];
+	return window.E.apply(null, args);
+}
+
 const isDir = (e) => e.type === 'directory' || (e.type === 'symlink' && e.target && e.target.type === 'directory');
 
 /* `/a/b` + `c` -> `/a/b/c`, and no `//` however the two halves end. */
@@ -82,7 +112,6 @@ function sortEntries(entries, key, dir) {
 		case 'mtime': d = (a.mtime || 0) - (b.mtime || 0); break;
 		case 'mode': d = (a.mode || 0) - (b.mode || 0); break;
 		case 'type': d = String(a.type).localeCompare(String(b.type)); break;
-		default: d = 0;
 		}
 		return (d || a.name.localeCompare(b.name)) * sign;
 	});
@@ -132,7 +161,7 @@ function extOf(name) {
 	const at = name.lastIndexOf('.');
 	if (at <= 0 || at === name.length - 1) return '';
 	const ext = name.slice(at + 1).toLowerCase();
-	return (ext.length <= 4 && /^[a-z0-9]+$/.test(ext)) ? ext : '';
+	return (ext.length <= 4 && (/^[a-z0-9]+$/).test(ext)) ? ext : '';
 }
 
 /* SVG NEEDS ITS OWN NAMESPACE. luci-base's `E()` builds elements with `document.createElement`,
@@ -145,7 +174,7 @@ function extOf(name) {
 /* `metaKey || (ctrlKey && !mac)`, never ctrlKey alone: on macOS Ctrl+click is the SYSTEM's context
  * menu and the click may never arrive, so reading ctrlKey there would be reading a gesture that
  * means something else entirely. Two callers ask this — a click on a row, and the rubber band. */
-const MAC = /Mac|iPad|iPhone/.test(navigator.platform || navigator.userAgent || '');
+const MAC = (/Mac|iPad|iPhone/).test(navigator.platform || navigator.userAgent || '');
 
 function metaOf(ev) {
 	return ev.metaKey || (ev.ctrlKey && !MAC);
@@ -578,7 +607,7 @@ return view.extend({
 			 *
 			 * `.fsf-modal` widens it: the stock dialog is sized for a form, and a config file read
 			 * through a column that narrow is worse than no highlighting at all. */
-			ui.showModal(path, [
+			ui.showModal([ path ], [
 				E('div', { class: 'fsf-modal' }, editor.styles().concat([ box ])),
 				/* NOT `.cbi-page-actions`, and that is a measured decision rather than a style one. In
 				 * this theme the fill for `.cbi-button-save` / `.cbi-button-reset` does come from that
@@ -713,7 +742,7 @@ return view.extend({
 		]).then(([ hex, buf ]) => {
 			const box = E('div', { class: 'fsf-editor fsf-hex-box' });
 			const status = E('span', { class: 'fsf-editor-status' }, '');
-			ui.showModal(path, [
+			ui.showModal([ path ], [
 				E('div', { class: 'fsf-modal' }, box),
 				E('div', { class: 'right fsf-modal-actions' }, [
 					status,
@@ -799,7 +828,7 @@ return view.extend({
 			value: '%s:%s'.format(entry.user ?? entry.uid ?? 'root', entry.group ?? entry.gid ?? 'root') });
 		const recurse = E('input', { type: 'checkbox' });
 
-		ui.showModal(_('Properties of %s').format(entry.name), [
+		ui.showModal([ _('Properties of %s').format(entry.name) ], [
 			E('div', { class: 'cbi-value' }, [
 				E('label', { class: 'cbi-value-title' }, _('Permissions (octal)')),
 				E('div', { class: 'cbi-value-field' }, mode),
@@ -830,7 +859,7 @@ return view.extend({
 		const jobs = [];
 		/* Refused here rather than by chmod: a mode this does not recognise is a typo, and chmod
 		 * would take `0` or `u+x` and do something the reader did not mean. */
-		if (mode && !/^[0-7]{3,4}$/.test(mode))
+		if (mode && !(/^[0-7]{3,4}$/).test(mode))
 			return fail(_('Cannot change permissions'), _('Permissions must be three or four octal digits, e.g. 644.'));
 		if (mode && mode !== octal(entry))
 			jobs.push([ '/bin/chmod', recurse ? [ '-R', '--', mode, path ] : [ '--', mode, path ] ]);

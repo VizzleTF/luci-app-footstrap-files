@@ -18,6 +18,36 @@
  * this page already uses to download) and lives as a Uint8Array; nothing here decodes it, because
  * the whole point is the bytes that are not text. The caller reads them back with `value()`. */
 
+/* ---- E(), WITH THE MARKUP SINK CLOSED ---------------------------------------------------------
+ *
+ * THIS PACKAGE'S CENTRAL CLAIM WAS FALSE UNTIL THIS SHIM. luci-base's `E()` is
+ * `L.dom.create(...)`, which ends in `dom.append(node, children)`:
+ *
+ *     if (Array.isArray(children)) { … node.appendChild(document.createTextNode(`${children[i]}`)); }
+ *     …
+ *     else if (children !== null && children !== undefined) { node.innerHTML = `${children}`; }
+ *
+ * Only the ARRAY branch makes text. A bare string child is assigned to `innerHTML` — so
+ * `E('span', {}, entry.name)` was a markup sink, and a file called `a<img src=q onerror=…>.txt`
+ * executed its own name in the admin session the moment its directory was listed. Verified on the
+ * stand before this shim went in: `window.__pwned` came back true, with this page's ACL
+ * (`file: {"/*": [list, read, write, exec]}`) behind whatever ran.
+ *
+ * The CI grep for `innerHTML` could never have caught it: the sink is inside luci-base, not here.
+ *
+ * The fix is one function rather than a hundred call sites, because a rule that has to be
+ * remembered at every call is a rule that will be forgotten at one of them. This SHADOWS the global
+ * `E` for the whole module, so every existing and future call goes through it: a primitive last
+ * argument is wrapped in an array — the branch that builds a text node — while an object (the
+ * attribute table, a DOM node, an array of children) passes through untouched. */
+function E() {
+	const args = Array.prototype.slice.call(arguments);
+	const last = args.length - 1;
+	if (last >= 1 && args[last] != null && typeof args[last] !== 'object' && typeof args[last] !== 'function')
+		args[last] = [ args[last] ];
+	return window.E.apply(null, args);
+}
+
 const ROW = 16;			/* bytes per line — the width every hex dump has had since od(1) */
 const OVERSCAN = 6;		/* lines drawn above and below the window, so a fast scroll has cover */
 
@@ -79,7 +109,7 @@ return baseclass.extend({
 			const top = Math.max(0, Math.floor(view.scrollTop / LH) - OVERSCAN);
 			if (!force && top === first) return;
 			first = top;
-			const count = Math.ceil(view.clientHeight / LH) + OVERSCAN * 2;
+			const count = Math.ceil(view.clientHeight / LH) + (OVERSCAN * 2);
 			const out = [];
 			for (let n = top; n < Math.min(lines, top + count); n++) out.push(line(n));
 			layer.style.transform = 'translateY(' + (top * LH) + 'px)';

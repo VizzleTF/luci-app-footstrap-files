@@ -72,6 +72,23 @@ node "$ROOT/tools/minify-js.mjs" "$VIEW"
 # router.
 node "$ROOT/tools/minify-vendor.mjs" "$VIEW/vendor/pce"
 
+# The menu node and the ACL, which the router parses as JSON and nobody reads by hand on a router:
+# 520 bytes of tab-indented text where 320 will do. Reparsed and compared after, because a package
+# whose ACL failed to parse would leave the page reachable and every call answering "access denied".
+node -e '
+const { readdirSync, readFileSync, writeFileSync, statSync } = require("fs");
+const walk = (d) => readdirSync(d).forEach((f) => {
+  const p = d + "/" + f;
+  if (statSync(p).isDirectory()) return walk(p);
+  if (!p.endsWith(".json")) return;
+  const was = JSON.parse(readFileSync(p, "utf8"));
+  const min = JSON.stringify(was);
+  if (JSON.stringify(JSON.parse(min)) !== JSON.stringify(was)) throw new Error(p + ": reparse differs");
+  writeFileSync(p, min + "\n");
+});
+walk(process.argv[1]);
+' "$STAGE/usr/share"
+
 # Only OUR stylesheet. The vendored CSS beside it (layout.css, search.css, the two themes) already
 # comes minified out of prism-code-editor's own build.
 sh "$ROOT/tools/minify-css.sh" "$VIEW/files.css" "$VIEW/editor.css"

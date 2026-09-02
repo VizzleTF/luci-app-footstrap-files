@@ -131,6 +131,22 @@ function wrapperParams(src) {
 	return names;
 }
 
+/* What the file DECLARES at its own top level — not in a nested scope, which is somebody else's
+ * business. A module that shadows a wrapper name deliberately (browser.js and hex.js define their
+ * own `E()`, the one that closes luci-base's markup sink) owns that name: it must not be reserved,
+ * or terser is forbidden from touching a binding the file made, and the clash check below reads a
+ * deliberate declaration as the accident it is meant to catch. */
+function topLevelNames(src) {
+	const out = new Set();
+	for (const n of acorn.parse(src, ACORN).body) {
+		if (n.type === 'FunctionDeclaration' || n.type === 'ClassDeclaration') { if (n.id) out.add(n.id.name); }
+		else if (n.type === 'VariableDeclaration')
+			for (const d of n.declarations)
+				if (d.id.type === 'Identifier') out.add(d.id.name);
+	}
+	return out;
+}
+
 /* the leading run of string-literal ExpressionStatements: 'use strict' + the require pragmas */
 function directives(src) {
 	const body = acorn.parse(src, ACORN).body;
@@ -150,7 +166,8 @@ for (const f of files) {
 	const src = readFileSync(f, 'utf8');
 	/* the two halves of "names this scope already has": what the file reads without binding, and
 	 * what the LuCI wrapper binds for it whether it reads them or not */
-	const free = new Set([ ...freeNames(src), ...wrapperParams(src) ]);
+	const own = topLevelNames(src);
+	const free = new Set([ ...freeNames(src), ...wrapperParams(src) ].filter((n) => !own.has(n)));
 	const res = await minify(src, {
 		parse: { bare_returns: true },
 		/* directives:false = do NOT remove them — the pragmas ARE directives */

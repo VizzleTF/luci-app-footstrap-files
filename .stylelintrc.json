@@ -1,0 +1,77 @@
+{
+  "//": [
+    "Adapted from luci-theme-footstrap's .stylelintrc.json — same rules, because the two packages are",
+    "read by the same person and one is a plugin for the other. What is dropped: the theme's !important",
+    "allowlist, because this package has none. An app's sheet is unlayered and already outranks every",
+    "cascade layer a theme has inside the app's own subtree, so a flag here would be fighting nothing.",
+    "vendor/ is ignored: prism-code-editor's dist is shipped verbatim and its formatting is not ours.",
+    "declaration-block-no-duplicate-custom-properties is OFF, and only here: editor.css declares each",
+    "tinted --pce-* twice on purpose — a plain rgba() first, then the color-mix() that a browser",
+    "without color-mix() ignores. That is the standard fallback pair, the rule has no `ignore` option",
+    "for it, and turning it on would forbid the one shape this sheet is built on."
+  ],
+  "plugins": [
+    "@stylistic/stylelint-plugin"
+  ],
+  "ignoreFiles": [
+    "luci-app-footstrap-files/htdocs/**/vendor/**",
+    "dist/**",
+    "node_modules/**"
+  ],
+  "rules": {
+    "@stylistic/string-quotes": "double",
+    "@stylistic/number-leading-zero": "never",
+    "color-no-invalid-hex": true,
+    "function-calc-no-unspaced-operator": true,
+    "string-no-newline": true,
+    "unit-no-unknown": true,
+    "property-no-unknown": true,
+    "declaration-block-no-duplicate-properties": [
+      true,
+      {
+        "ignore": [
+          "consecutive-duplicates-with-different-values"
+        ]
+      }
+    ],
+    "declaration-block-no-shorthand-property-overrides": true,
+    "block-no-empty": true,
+    "selector-pseudo-class-no-unknown": true,
+    "selector-pseudo-element-no-unknown": [
+      true,
+      {
+        "ignorePseudoElements": [
+          "picker",
+          "picker-icon",
+          "checkmark",
+          "-webkit-slider-thumb",
+          "-moz-range-thumb",
+          "-webkit-search-decoration",
+          "file-selector-button"
+        ]
+      }
+    ],
+    "selector-type-no-unknown": true,
+    "media-feature-name-no-unknown": true,
+    "at-rule-no-unknown": true,
+    "comment-no-empty": true,
+    "no-duplicate-at-import-rules": true,
+    "no-duplicate-selectors": true,
+    "no-empty-source": true,
+    "no-invalid-double-slash-comments": true,
+    "no-invalid-position-at-import-rule": true,
+    "no-irregular-whitespace": true,
+    "declaration-property-value-no-unknown": true,
+    "custom-property-no-missing-var-function": true,
+    "declaration-block-no-duplicate-custom-properties": null,
+    "function-no-unknown": true,
+    "media-query-no-invalid": true,
+    "selector-anb-no-unmatchable": true,
+    "keyframe-declaration-no-important": true,
+    "no-invalid-position-declaration": true,
+    "font-family-no-missing-generic-family-keyword": true,
+    "syntax-string-no-invalid": true,
+    "no-descending-specificity": null,
+    "declaration-no-important": true
+  }
+}

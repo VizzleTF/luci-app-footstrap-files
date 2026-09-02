@@ -105,6 +105,26 @@ jobs:
           print('menu ok')
           PY
 
+  lint:
+    name: eslint, stylelint and the stylesheet contract
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      # The same two linters the theme runs, with the same rules — the two packages are read by the
+      # same person and one is a plugin for the other. `wrap-regex` is the load-bearing one here:
+      # the SDK path minifies this JS with jsmin, whose regex-vs-division test is a one-character
+      # lookback that gets `return /re/` wrong and eats the rest of the file while exiting 0.
+      - run: npm run lint:js
+      - run: npm run lint:css
+      # Colour from the 26 export names and nothing else, no orphaned `.fsf-*`, and no stylesheet
+      # that fetches from the network.
+      - run: npm run css-contract
+
   payload:
     name: the staged payload is minified
     runs-on: ubuntu-24.04
@@ -212,6 +232,16 @@ jobs:
       # `--exclude-dir=vendor` and not a path list: the editor lives under the view's own directory
       # now (where a LuCI app keeps what belongs to one view), so a plain recursive grep would read
       # third-party code we ship verbatim and fail on somebody else's markup.
+      # THE GREP BELOW IS NOT ENOUGH, and that is worth stating where it lives: luci-base's own
+      # `E()` assigns a bare string child to `innerHTML`, so the sink is in a file this grep never
+      # reads. Every module that builds DOM shadows `E` with a wrapper that wraps a primitive in an
+      # array; this checks that the wrapper is there and that nobody reaches around it.
+      - name: the markup sink stays closed
+        run: |
+          set -eu
+          npm ci --ignore-scripts
+          node tools/dom-sinks.mjs
+
       - name: no innerHTML, no insertAdjacentHTML, no document.write
         run: |
           set -eu

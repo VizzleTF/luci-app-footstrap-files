@@ -35,6 +35,36 @@
  * shape stock luci-app-filemanager uses for its own HexEditor, and what the theme's app guide asks
  * for. A library in a SHARED path (`/luci-static/resources/codemirror/`, as AdGuardHome ships it) is
  * overwritten by the next app that vendors a different version of the same thing. */
+/* ---- E(), WITH THE MARKUP SINK CLOSED ---------------------------------------------------------
+ *
+ * THIS PACKAGE'S CENTRAL CLAIM WAS FALSE UNTIL THIS SHIM. luci-base's `E()` is
+ * `L.dom.create(...)`, which ends in `dom.append(node, children)`:
+ *
+ *     if (Array.isArray(children)) { … node.appendChild(document.createTextNode(`${children[i]}`)); }
+ *     …
+ *     else if (children !== null && children !== undefined) { node.innerHTML = `${children}`; }
+ *
+ * Only the ARRAY branch makes text. A bare string child is assigned to `innerHTML` — so
+ * `E('span', {}, entry.name)` was a markup sink, and a file called `a<img src=q onerror=…>.txt`
+ * executed its own name in the admin session the moment its directory was listed. Verified on the
+ * stand before this shim went in: `window.__pwned` came back true, with this page's ACL
+ * (`file: {"/*": [list, read, write, exec]}`) behind whatever ran.
+ *
+ * The CI grep for `innerHTML` could never have caught it: the sink is inside luci-base, not here.
+ *
+ * The fix is one function rather than a hundred call sites, because a rule that has to be
+ * remembered at every call is a rule that will be forgotten at one of them. This SHADOWS the global
+ * `E` for the whole module, so every existing and future call goes through it: a primitive last
+ * argument is wrapped in an array — the branch that builds a text node — while an object (the
+ * attribute table, a DOM node, an array of children) passes through untouched. */
+function E() {
+	const args = Array.prototype.slice.call(arguments);
+	const last = args.length - 1;
+	if (last >= 1 && args[last] != null && typeof args[last] !== 'object' && typeof args[last] !== 'function')
+		args[last] = [ args[last] ];
+	return window.E.apply(null, args);
+}
+
 const V = L.resource('view/footstrap-files/vendor/pce');
 
 /* UCI HAS ITS OWN GRAMMAR NOW. It used to be highlighted as shell, which was the closest thing the

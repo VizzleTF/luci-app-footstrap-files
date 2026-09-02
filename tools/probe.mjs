@@ -79,7 +79,6 @@ const at = async (path) => {
 	await page.goto(`${BASE}/admin/system/footstrap-files#${encodeURIComponent(path)}`, { waitUntil: 'domcontentloaded' });
 	await page.waitForTimeout(2500);
 };
-const names = () => page.evaluate(() => [ ...document.querySelectorAll('.table .tr .td:nth-child(2)') ].map((e) => e.textContent.trim()));
 /* The toolbar draws icons, so its buttons are addressed by the name they carry for a screen
  * reader rather than by their text. */
 const bar = (label) => page.locator('.fsf-bar [aria-label="' + label + '"]').first().click();

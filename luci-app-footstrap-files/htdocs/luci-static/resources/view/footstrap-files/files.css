@@ -352,8 +352,6 @@
 	background: var(--background-color-low, #f5f5f5);
 }
 
-.fsf-listing { min-height: 4rem; }
-
 /* ---- the tile view ------------------------------------------------------------------------------
  *
  * The other way to read a directory: one tile per entry. `auto-fill` with a floor rather than a
@@ -394,11 +392,8 @@
  * accent when it is a directory, and colour alone would make the two states indistinguishable. */
 .fsf-tile-sel {
 	border-color: var(--primary-color-medium, #0069d9);
-	background: var(--background-color-low, #f5f5f5);
-}
-
-/* The same tint the selected row carries, so the two views say "selected" the same way. */
-.fsf-tile-sel {
+	/* The same tint the selected row carries, so the two views say "selected" the same way. The
+	 * literal is what a browser without color-mix() gets. */
 	background: rgba(9, 105, 218, .12);
 	background: color-mix(in srgb, var(--primary-color-medium, #0969da) 12%, transparent);
 }

@@ -3,12 +3,24 @@
   "private": true,
   "description": "Build and check tooling only. NOTHING here is shipped: the package payload is browser JS, one stylesheet and the vendored editor, and a router never runs node. terser and acorn are what tools/minify-js.mjs uses to pre-minify the staged JS; the OpenWrt SDK path needs neither.",
   "scripts": {
+    "lint": "npm run lint:js && npm run lint:css",
+    "lint:js": "eslint .",
+    "lint:css": "stylelint \"luci-app-footstrap-files/htdocs/**/*.css\"",
+    "css-contract": "node tools/css-contract.mjs",
+    "i18n": "luci-app-footstrap-files/update-po.sh --check",
+    "i18n-packages": "sh tools/i18n-packages.sh",
     "t0": "sh tools/t0.sh",
     "stage": "sh tools/stage.sh",
-    "i18n": "luci-app-footstrap-files/update-po.sh --check"
+    "check": "npm run lint && npm run css-contract && npm run t0 && npm run i18n-packages && npm run i18n"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "@stylistic/stylelint-plugin": "^5.3.0",
     "acorn": "^8.15.0",
+    "eslint": "^10.9.1",
+    "globals": "^17.12.0",
+    "stylelint": "^17.14.1",
     "terser": "^5.49.2"
   }
 }

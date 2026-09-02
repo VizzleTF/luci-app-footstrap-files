@@ -135,8 +135,15 @@ table markup. The three that cost the most:
 - **Nothing is written into `<head>`.** Stylesheets are `<link>`s inside the view's tree, so they
   die with `#view`; the editor's own styles live in its shadow root. A sheet in `<head>` survives an
   SPA navigation and repaints somebody else's page — the trap the theme documents.
-- **E() sets text, never markup.** A file name is data. There is no `innerHTML` on this page and
-  there must not be one.
+- **E() SETS TEXT ONLY BECAUSE THIS PAGE MAKES IT.** luci-base's `E()` is `L.dom.create()`, which
+  ends in `dom.append()`: only the ARRAY branch builds text nodes, and a bare string child is
+  assigned to `node.innerHTML`. So `E('span', {}, entry.name)` WAS a markup sink — a file called
+  `a<img src=q onerror=…>.txt` ran its own name in the admin session the moment its directory was
+  listed, with this package's ACL behind it. Proved on the stand, then fixed and proved again.
+  Every module that builds DOM now shadows `E` with a wrapper that wraps a primitive last argument
+  in an array; `ui.showModal(title, …)` is the same sink one level up (`dom.create('h4', {},
+  title)`) and takes an array too. `tools/dom-sinks.mjs` holds both, in T0 and in CI — the old grep
+  for `innerHTML` could not, because the sink is in luci-base and not in this tree.
 - **The vendored editor is pruned by reachability**, not by hand: `setups/index.js` pulls a barrel
   that imports every grammar (263 files, measured). What is left of it is the editor and the search
   widget — 17 files. Three things that used to come from it do not any more, and each was measured
