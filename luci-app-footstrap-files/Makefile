@@ -23,8 +23,10 @@ endif
 LUCI_TITLE:=A file manager for the Footstrap theme
 
 # +luci-base only, and NOT the theme. This is an ordinary LuCI view, not a chrome plugin: it renders
-# under any theme, and its stylesheet is a `@layer` of its own that changes nothing outside its own
-# page. Depending on the theme would install a theme on a router that asked for a file manager.
+# under any theme, and its stylesheet is scoped to this package's own `.fsf-*` classes, unlayered
+# and without one `!important` — an app's sheet already outranks every cascade layer a theme has
+# inside the app's own subtree. Depending on the theme would install a theme on a router that asked
+# for a file manager.
 #
 # cgi-io is what serves the actual bytes for an upload and a download (`/cgi-bin/cgi-upload`,
 # `/cgi-bin/cgi-download`); luci-base pulls it in already, and it is named here because this package
@@ -34,15 +36,17 @@ LUCI_PKGARCH:=all
 LUCI_MAINTAINER:=VizzleTF <vizzletf47@gmail.com>
 LUCI_URL:=https://github.com/VizzleTF/luci-app-footstrap-files
 LUCI_DESCRIPTION:=Browse, upload, download, rename, edit and delete files on the router. Written for \
-the Footstrap theme and usable under any other: the page is plain LuCI markup, the styling is one \
-cascade layer of its own, and everything it does goes through luci-base's own `fs` API and cgi-io.
+the Footstrap theme and usable under any other: the page is plain LuCI markup, the styling is scoped \
+to the package's own classes, and everything it does goes through luci-base's own `fs` API and cgi-io.
 
 PKG_LICENSE:=Apache-2.0
 PKG_LICENSE_FILES:=LICENSE
 
 # CSS: ship verbatim. luci.mk defaults LUCI_MINIFY_CSS to 1, which runs csstidy over every *.css
-# under htdocs/ — and csstidy predates @layer by fifteen years: measured on the theme's own sheet it
-# drops the `@layer` wrapper and the rules inside it whole. The same trap, the same answer.
+# under htdocs/ — and csstidy is fifteen years older than the syntax a sheet written today uses:
+# measured on the theme's own sheet it drops the `@layer` wrapper and every rule inside it, and this
+# one is full of color-mix(). The owfeed path minifies it with tools/minify-css.sh instead, which is
+# string-aware and checks its own rule count before and after.
 LUCI_MINIFY_CSS:=0
 
 # RELOAD, NOT RESTART: rpcd holds sessions in memory, so `restart` logs out every LuCI user while

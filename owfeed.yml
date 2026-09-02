@@ -62,8 +62,9 @@ packages:
     files: ./dist/root
 
     description: "Browse, upload, download, edit and delete files on the router."
-    # The Makefile's LUCI_DEPENDS verbatim. luci-theme-footstrap is not optional: this package is
-    # four JS modules the theme's chrome requires, and without it nothing loads them.
+    # The Makefile's LUCI_DEPENDS verbatim, and the theme is NOT among them: this is an ordinary
+    # LuCI view that renders under any theme, so depending on one would install a theme on a router
+    # that asked for a file manager. cgi-io serves the bytes of an upload and a download.
     depends: [luci-base, cgi-io]
     license: Apache-2.0
     url: https://github.com/VizzleTF/luci-app-footstrap-files

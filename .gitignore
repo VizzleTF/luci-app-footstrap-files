@@ -1,5 +1,3 @@
 node_modules/
 dist/
 *.log
-# written by tools/stage-release.sh; the release BODY, never an asset
-release-notes.md
