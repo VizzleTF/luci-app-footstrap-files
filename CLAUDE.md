@@ -21,11 +21,57 @@ release is not optional.
 |---|---|
 | `htdocs/luci-static/resources/view/footstrap-files/browser.js` | the page: listing, toolbar, operations, the editor panel |
 | `htdocs/luci-static/resources/view/footstrap-files/editor.js` | the editor, assembled by hand out of prism-code-editor |
-| `htdocs/luci-static/footstrap-files/files.css` | one `@layer footstrap-files`, `--fs-*` tokens WITH fallbacks so it is right under any theme |
-| `htdocs/luci-static/footstrap-files/vendor/pce/` | third-party, vendored verbatim, **not ours to edit or minify** |
+| `htdocs/luci-static/resources/view/footstrap-files/files.css` | unlayered and `.fsf-*`-scoped; colour from the export tier with literal fallbacks, spacing and radius as plain values |
+| `htdocs/luci-static/resources/view/footstrap-files/vendor/pce/` | third-party, vendored verbatim, **not ours to edit or minify** |
 | `root/usr/share/luci/menu.d/`, `root/usr/share/rpcd/acl.d/` | the menu node and the grant |
 
+## Read this before touching the styling
+
+**`docs/luci-app-styling-guide.md` in the theme's repository is the contract for an app**, and it is
+outward-facing: it is written for exactly this package. It was not read when this page was first
+written, and the page broke every rule it cares about — the tokens, the dark-mode signal, and the
+table markup. The three that cost the most:
+
+- **Colour comes from the 26 `--*-color-*` export names, never from `--fs-*`.** Those are the theme's
+  PRIVATE tier: renamed whenever it wants, absent from every other theme. Spacing, radius and type
+  are not on the tier at all, so they are literals here.
+- **Dark mode is asked of the THEME**, in the order `data-darkmode` → `data-theme` → `data-bs-theme`
+  → the luminance of `body`. `prefers-color-scheme` reports the operating system and is the wrong
+  question. Verified on the stand with the OS light and the theme dark: the editor loads
+  `github-dark.css` and the page's own surfaces come out dark.
+- **Stock markup, not a lookalike.** A LuCI table is a real `<table class="table">` with
+  `<tr class="tr">` and `<td class="td" data-title="…">` — the shape Active DHCP Leases uses. Built
+  out of divs carrying the same class names, the browser wraps the rows in an anonymous table box
+  that draws as an empty band above the header.
+
 ## Rules with a reason
+
+- **One click opens; selecting several is a MODE.** The model is the iOS Files app, because that is
+  the one a phone can drive: a tap opens, a long press (500 ms, 10 px of travel allowed) opens the
+  menu, and its **Select** turns on a mode where a tap ticks and a bar carries the count, Copy, Move,
+  Delete and Done. A mouse does not wait for the mode — Ctrl/Cmd+click toggles, Shift+click takes the
+  range — and using either turns it on so the bar appears. The pivot rule is Explorer's: a plain or
+  Ctrl+click MOVES the anchor, Shift+click does not, and each Shift+click recomputes from the anchor
+  rather than extending the last result.
+- **`metaKey || (ctrlKey && !mac)`, never `ctrlKey` alone.** On macOS Ctrl+click is the system's
+  context menu and the `click` may never arrive.
+- **iOS Safari sends no `contextmenu` at all**, so the long-press timer is the only way into the menu
+  there; `-webkit-touch-callout: none` (coarse pointers only) is what stops the system callout from
+  opening on top of it, and `preventDefault()` on `touchend` is what stops the synthetic click from
+  opening the file underneath.
+- **iOS suspends JS timers while a scroll and its momentum run**, so a long press begun just after
+  scrolling never reaches its 500 ms callback — reported from a real iPhone as "no menu on
+  /etc/config, only after scrolling". `touchend` therefore measures the elapsed time itself and opens
+  the menu on release. Proved with the 500 ms timer stubbed out in the page (`tools/probe.mjs`).
+- **A `contextmenu` event can carry no coordinates** — the menu key and Shift+F10 send 0/0 — and the
+  arithmetic then yields `NaNpx`, which the browser drops and the menu lands wherever its static
+  position falls. Without coordinates it is anchored under the row.
+- **Select mode owns the toolbar, and an action ends it.** A second bar under the first pushed the
+  listing down on every tick; ticking now repaints classes only (`paintSelection`), measured at 0px
+  of scroll and 0px of height change.
+- **The anchor is a PATH, not an index**, and the selection is intersected with what is on screen
+  after every refresh: a poll or an operation redraws the listing, and a stale index would make
+  Delete act on something the reader cannot see.
 
 - **The listing is a LuCI `.table`** — `.tr`/`.th`/`.td` with `data-title` on every cell. That is
   what makes it card up on a phone under Footstrap and inherit any other theme's table styling. A

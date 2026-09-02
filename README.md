@@ -19,16 +19,17 @@ Then **System → Files**.
 
 | | |
 |---|---|
-| Browse | breadcrumbs, sortable columns (name, type, size, permissions, modified), the path in the address bar so a directory can be bookmarked |
-| Files | upload, download, rename, copy, move, delete, new file, new directory |
+| Browse | breadcrumbs, sortable columns (name, type, size, permissions, modified), a list view and a tile view, the path in the address bar so a directory can be bookmarked |
+| Files | upload (button or drag-and-drop, onto a folder or into the directory), download, rename, copy, move, delete, new file, new directory |
+| Selecting | one click opens; Ctrl/Cmd+click and Shift+click select the way Explorer and Finder do, and a long press or right click opens a menu whose **Select** turns on a mode where every tap ticks — the Files app's model, so a phone can select several without a modifier key |
 | Permissions | mode and owner, shown as `drwxr-xr-x root:root` and editable as `644` / `user:group`, optionally recursive |
 | Edit | syntax highlighting, line numbers, find and replace, bracket matching; files up to 1 MB |
 | Phone | the listing becomes a card per file, and the editor is a real `<textarea>` underneath, so the keyboard, IME and autocorrect are the ones the phone already has |
 
 ## What it does not do
 
-No hex editor, no markdown preview, no drag-and-drop upload, no column resizing. Those are the parts
-of the stock `luci-app-filemanager` this package deliberately leaves out for now.
+No hex editor, no markdown preview, no column resizing. Those are the parts of the stock
+`luci-app-filemanager` this package deliberately leaves out for now.
 
 ## Permissions
 
@@ -78,4 +79,4 @@ here comes from one.
 ## Licence
 
 Apache-2.0. The vendored editor is MIT; its licence travels with it under
-`htdocs/luci-static/footstrap-files/vendor/pce/LICENSE`.
+`htdocs/luci-static/resources/view/footstrap-files/vendor/pce/LICENSE`.
