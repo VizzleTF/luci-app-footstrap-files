@@ -69,9 +69,22 @@ table markup. The three that cost the most:
 - **A MOVE ASKS FIRST, naming the destination.** A drag is the easiest gesture here to make by
   accident — a press that travels four pixels — and it moves files as root. `confirm()`, the same
   as a delete, because "move 3 items" without saying where is not a question anybody can answer.
-- **`..` IS A DROP TARGET** and not a drag source: moving something up is as ordinary as moving it
-  down, and without it the clipboard was the only way out of a directory. It carries no `data-path`,
-  so the band and the selection never see it.
+- **`..` IS A DROP TARGET IN BOTH VIEWS** and not a drag source: moving something up is as ordinary
+  as moving it down, and without it the clipboard was the only way out of a directory. It carries no
+  `data-path`, so the band and the selection never see it. The table's row and the grid's tile are
+  built in different places — wiring only one of them made the gesture work in one view, which reads
+  as a bug rather than as a limit.
+- **A DROP HIGHLIGHT IS CLEARED EVERYWHERE, not just where it landed.** A row's drop calls
+  `stopPropagation`, so the listing under it — highlighted on the way in, because `dragenter`
+  bubbles — never saw the drop that would have cleared it, and unlike the rows the listing survives
+  the refresh: a dashed frame stayed around the whole page until the next navigation. `drop` and
+  `dragend` both call `clearDrops()`, which asks the DOM rather than a list of closures, because the
+  rows those closures belonged to no longer exist after a redraw.
+- **`dragleave` IS ANSWERED WITH `relatedTarget`, not with a counter.** It fires on every child the
+  pointer crosses — a row is six cells and a span — so the naive listener drops the highlight while
+  the pointer is still inside. A depth counter fixed that until a swallowed drop left the count
+  above zero for ever; asking whether the element being entered is still inside is the same question
+  without the state.
 - **A DRAG CARRIES `this._dragging`, not `dataTransfer`.** The data in a `DataTransfer` cannot be
   read during `dragover` (and Safari hides custom types entirely), so the paths being dragged live
   in a field and the MIME type is set only for dropping outside the page. `dropTarget` tells the two

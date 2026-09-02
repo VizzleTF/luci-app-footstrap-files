@@ -1019,11 +1019,10 @@ return view.extend({
 			if (Array.prototype.indexOf.call(types, 'Files') >= 0) return 'files';
 			return (this._dragging && this._dragging.length) ? 'paths' : null;
 		};
-		let depth = 0;
-		const lift = () => { if (depth === 0) el.classList.remove('fsf-drop'); };
 		el.addEventListener('dragenter', (ev) => {
 			if (!kind(ev)) return;
-			ev.preventDefault(); depth++; el.classList.add('fsf-drop');
+			ev.preventDefault();
+			el.classList.add('fsf-drop');
 		});
 		el.addEventListener('dragover', (ev) => {
 			const k = kind(ev);
@@ -1032,18 +1031,38 @@ return view.extend({
 			/* the cursor says what will happen: a copy from outside, a move from inside */
 			ev.dataTransfer.dropEffect = (k === 'files') ? 'copy' : 'move';
 		});
-		el.addEventListener('dragleave', () => { depth = Math.max(0, depth - 1); lift(); });
+		/* `dragleave` FIRES ON EVERY CHILD the pointer crosses — a row is six cells and a span — so
+		 * the naive listener takes the highlight off while the pointer is still inside. The counter
+		 * this used to keep worked until a drop was swallowed by a row (see below) and left the
+		 * listing's count above zero for ever. `relatedTarget` is the element being entered, and
+		 * asking whether it is still inside is the question without the state. */
+		el.addEventListener('dragleave', (ev) => {
+			if (ev.relatedTarget && el.contains(ev.relatedTarget)) return;
+			el.classList.remove('fsf-drop');
+		});
 		el.addEventListener('drop', (ev) => {
 			const k = kind(ev);
 			if (!k) return;
 			ev.preventDefault();
-			ev.stopPropagation();				/* a row's drop is not also the listing's drop */
-			depth = 0; lift();
+			/* A ROW'S DROP IS NOT ALSO THE LISTING'S — which is exactly what left a dashed frame
+			 * around the whole listing after every drop onto a folder: the listing had been
+			 * highlighted on the way in (the event bubbles) and never saw the drop that would have
+			 * cleared it, and unlike the rows it survives the refresh. Every mark goes at once. */
+			ev.stopPropagation();
+			this.clearDrops();
 			if (k === 'files') return this.uploadFiles(ev.dataTransfer.files, to());
 			const paths = this._dragging || [];
 			this._dragging = null;
 			return this.moveInto(paths, to());
 		});
+	},
+
+	/* Every drop highlight in the view, gone. Asked of the DOM rather than of a list this page
+	 * keeps, because the rows are rebuilt on every redraw and a list of closures would be a list of
+	 * elements that no longer exist. */
+	clearDrops() {
+		if (!this.root) return;
+		for (const el of this.root.querySelectorAll('.fsf-drop')) el.classList.remove('fsf-drop');
 	},
 
 	/* WHAT A ROW HANDS OVER WHEN IT IS DRAGGED. Dragging something that is already ticked takes the
@@ -1065,7 +1084,7 @@ return view.extend({
 			 * row the thing being moved. */
 			ev.stopPropagation();
 		});
-		el.addEventListener('dragend', () => { this._dragging = null; });
+		el.addEventListener('dragend', () => { this._dragging = null; this.clearDrops(); });
 	},
 
 	/* `mv -n`, the same command a paste runs, with the two refusals a drag can walk into and a
@@ -1509,10 +1528,16 @@ return view.extend({
 	tiles() {
 		const out = [];
 		this.order = [];
-		if (this.path !== '/')
-			out.push(E('a', { class: 'fsf-tile fsf-tile-up', href: this.href(parent(this.path)) }, [
+		if (this.path !== '/') {
+			/* THE TILE VIEW'S `..` TAKES A DROP TOO. It was added to the table's row and not here,
+			 * which made "drag onto the parent" a thing that worked in one of the two views — the
+			 * kind of half-feature that reads as a bug rather than as a limit. */
+			const up = E('a', { class: 'fsf-tile fsf-tile-up', href: this.href(parent(this.path)) }, [
 				ICON.dir(ICON_TILE), E('span', { class: 'fsf-tile-name' }, '..'),
-			]));
+			]);
+			this.dropTarget(up, parent(this.path));
+			out.push(up);
+		}
 
 		for (const entry of sortEntries(this.entries || [], this.sortKey, this.sortDir)) {
 			const full = join(this.path, entry.name);
