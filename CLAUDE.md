@@ -92,15 +92,52 @@ table markup. The three that cost the most:
 - **The vendored editor is pruned by reachability**, not by hand: `setups/index.js` pulls a barrel
   that imports every grammar (263 files, measured). Adding a language means adding
   `prism/languages/<lang>.js` AND `languages/<lang>.js` and re-running the prune.
+- **Find is a BUTTON because Ctrl+F is not a gesture a phone has.** The vendored widget opens on
+  Ctrl+F, Cmd+F and F3 and on nothing else, so on touch the find-and-replace this package vendors
+  could not be reached at all. The magnifier sits left of Save, is a toggle, and calls
+  `editor.extensions.searchWidget.open(true)` — the `true` selects the field, which is what raises
+  the keyboard. Whether it is open is asked of the DOM (`w.element.isConnected`): the library keeps
+  `isOpen` private, and `open()`/`close()` add and remove that element.
+- **Escape closes the WIDGET, and this page is what closes it.** The library binds its Escape to the
+  editor's `wrapper`, and the widget is mounted as an overlay BESIDE that wrapper, so a keypress
+  from the Find field never passes through it — proved on the 25.12 stand: the event reached window,
+  document (capture and bubble) and the editor's root with nothing prevented, and the widget stayed
+  open. A guard that merely stepped aside therefore left Escape doing nothing at all, with the
+  widget dismissable only by mouse. `_escEdit` closes it itself and stops there; closing the dialog
+  on that key would throw away an unsaved file. Verified on both stands and at three sizes.
+- **The dialog's open-ness is `body.modal-overlay-active`, not a node count.** `ui.hideModal()`
+  leaves the dialog's nodes in the document and takes that class off `<body>` — a probe that counts
+  `.fsf-modal-actions` reports every dialog as permanently open.
+- **One package per LANGUAGE, and the app package carries none.** A router that took the file
+  manager has no reason to carry Russian, and a catalogue shipped inside the app is lost on the next
+  upgrade with nothing saying why (measured on the theme). `tools/stage.sh` writes a pair per
+  language — `dist/i18n-<lang>` (the uci-defaults line) and `dist/po-<lang>` (what owfeed compiles
+  to .lmo) — and owfeed cuts `luci-i18n-footstrap-files-<lang>` from them. Adding a language means
+  three edits, not one: `po/<lang>/`, `lang_name()` in stage.sh (LuCI's own display name, or the
+  menu shows a bare code), and a package block in `owfeed.yml` with `files:`, `i18n.from:` and
+  `install-if: [luci-app-footstrap-files={version}, luci-i18n-base-<lang>]`. Miss the last one and
+  nothing fails: the catalogue is staged, packaged by nobody, and the language never reaches a
+  router with the build still green — which is why `tools/i18n-packages.sh` compares the languages
+  on disk against the packages declared for them, in both directions, and runs in T0 and in CI.
+- **The payload is minified on the way out, never in the checkout.** `tools/stage.sh` runs
+  `minify-js.mjs` (terser) over the view's own modules and `minify-css.sh` over `files.css`:
+  88,968 bytes of source become 34,153. `vendor/` is excluded by name in both — third-party code,
+  already minified by its own build. The SDK path still uses jsmin, which is what T0 gates, so the
+  two paths ship different bytes for one commit on purpose. The step this replaced globbed
+  `resources/fs-cmd*.js`, a path copied from the sibling package, matched nothing and skipped
+  minification in silence: v0.1.0 shipped the commented sources. CI now compares staged bytes
+  against source bytes for all three files.
 
 ## Commands
 
 ```sh
+npm ci                                       # terser + acorn; stage.sh refuses to build without them
 tools/t0.sh                                  # T0: every module parses, before and after jsmin
 FOOTSTRAP_VERSION=x.y.z ./tools/stage.sh     # dist/root + dist/VERSION + dist/scripts + dist/i18n-*
 owfeed build                                 # both formats into dist/
 ./luci-app-footstrap-files/update-po.sh      # rescan strings; --check is the gate
 owlab status                                 # the theme's stands are used for testing this too
+node tools/readme-shots.mjs                  # the README's four pictures, off a stand, both themes
 ```
 
 ## Verifying
