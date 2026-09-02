@@ -22,7 +22,11 @@
  * cascade layer order cannot be inverted from here (footstrap docs/css.md). That is the property
  * that ruled out Ace, whose sheets land first in <head> unless `useStrictCSP` is set. */
 
-const V = L.resource('../footstrap-files/vendor/pce');
+/* Under `resources/view/<app>/`, which is where a LuCI app keeps what belongs to one view — the
+ * shape stock luci-app-filemanager uses for its own HexEditor, and what the theme's app guide asks
+ * for. A library in a SHARED path (`/luci-static/resources/codemirror/`, as AdGuardHome ships it) is
+ * overwritten by the next app that vendors a different version of the same thing. */
+const V = L.resource('view/footstrap-files/vendor/pce');
 
 /* uci is not INI and not shell, but shell is the closest grammar that ships: quoted strings, `#`
  * comments and bare words all match. Measured on /etc/config/network with Prism's `ini`, which is
@@ -76,14 +80,26 @@ function loadGrammar(lang) {
 	return _grammars.get(lang);
 }
 
-/* The theme in use decides light or dark, and the editor is told rather than left to guess: the two
- * sheets are the library's own github-light/github-dark, chosen from the page's resolved colour
- * scheme. Read once per editor, because a reader who flips the theme gets a fresh page anyway. */
+/* ASK THE THEME, NOT THE OPERATING SYSTEM. `prefers-color-scheme` reports the OS, and a reader who
+ * forces dark on a light desktop would get a light editor on a dark page — the bug four apps in
+ * footstrap's own survey have (docs/luci-app-styling-guide.md §4). The three attribute dialects are
+ * asked in order, and the luminance of `body` is the fallback that works on a theme that stamps
+ * none of them. */
+function isDark() {
+	const root = document.documentElement;
+	if (root.dataset.darkmode) return root.dataset.darkmode === 'true';
+	if (root.dataset.theme) return root.dataset.theme === 'dark';
+	if (root.dataset.bsTheme) return root.dataset.bsTheme === 'dark';
+	const m = window.getComputedStyle(document.body).backgroundColor.match(/\d+/g);
+	return (m && m.length >= 3)
+		? (0.299 * +m[0] + 0.587 * +m[1] + 0.114 * +m[2]) / 255 < 0.5
+		: false;
+}
+
+/* The editor is TOLD which way the page is, rather than left to pick: a hardcoded editor theme is
+ * how mosdns and ssclash end up with a permanently black editor on a light page. */
 function themeHref() {
-	const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-	const attr = document.documentElement.getAttribute('data-dark');
-	const isDark = (attr === 'true') || (attr === null && dark);
-	return `${V}/themes/github-${isDark ? 'dark' : 'light'}.css`;
+	return `${V}/themes/github-${isDark() ? 'dark' : 'light'}.css`;
 }
 
 return baseclass.extend({

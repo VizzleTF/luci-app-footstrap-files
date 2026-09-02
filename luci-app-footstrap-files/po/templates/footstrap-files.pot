@@ -1,289 +1,358 @@
 msgid ""
 msgstr "Content-Type: text/plain; charset=UTF-8"
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:440
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:675
 msgid "%d item(s) to copy"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:440
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:675
 msgid "%d item(s) to move"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:495
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:868
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1194
+msgid "%d selected"
+msgstr ""
+
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:742
 msgid "%s could not be removed (%s). Delete it and everything inside?"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:473
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:704
+msgid "%s was not pasted"
+msgstr ""
+
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:720
 msgid "A name may not contain a slash."
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:197
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:227
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:285
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:369
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:422
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:487
 msgid "Actions"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:401
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:636
 msgid "Apply"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:389
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:624
 msgid "Apply to everything inside"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:393
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:628
 msgid "Cancel"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:420
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:421
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:655
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:656
 msgid "Cannot change %s"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:411
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:646
 msgid "Cannot change permissions"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:510
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:511
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:757
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:758
 msgid "Cannot create directory"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:519
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:766
 msgid "Cannot create file"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:499
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:500
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:746
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:747
 msgid "Cannot delete %s"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:300
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:502
 msgid "Cannot download %s"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:315
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:517
 msgid "Cannot edit %s"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:342
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:569
 msgid "Cannot open the editor"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:459
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:696
 msgid "Cannot paste"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:461
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:462
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:707
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:708
 msgid "Cannot paste %s"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:125
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:138
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:343
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:277
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:296
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:570
 msgid "Cannot read %s"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:473
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:477
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:478
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:720
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:724
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:725
 msgid "Cannot rename %s"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:363
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:598
 msgid "Cannot save %s"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:537
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:541
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:790
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:793
 msgid "Cannot upload %s"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:332
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:557
 msgid "Close"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:571
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:869
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:886
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1198
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1265
 msgid "Copy"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:249
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:251
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:444
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:446
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:872
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:889
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1202
 msgid "Delete"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:483
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:730
 msgid "Delete %d item(s)? This cannot be undone."
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:576
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1267
 msgid "Delete selected"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:193
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:220
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:365
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:415
 msgid "Directory"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:234
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:236
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1207
+msgid "Done"
+msgstr ""
+
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:429
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:431
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:877
 msgid "Download"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:229
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:231
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:424
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:426
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:876
 msgid "Edit"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:220
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:415
 msgid "File"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:563
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1257
 msgid "Files"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:444
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:679
 msgid "Forget"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:566
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1260
 msgid "Go"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:196
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:226
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:284
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1244
+msgid "List"
+msgstr ""
+
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1283
+msgid "Long press a file for actions"
+msgstr ""
+
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:368
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:421
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:486
 msgid "Modified"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:572
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:870
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:887
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1200
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1266
 msgid "Move"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:190
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:219
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:280
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:360
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:398
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:482
 msgid "Name"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:507
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:754
 msgid "New directory name:"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:570
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:902
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1264
 msgid "New file"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:515
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:762
 msgid "New file name:"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:569
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:901
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1263
 msgid "New folder"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:431
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:666
 msgid "Nothing selected"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:385
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:876
+msgid "Open"
+msgstr ""
+
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:620
 msgid "Owner (user:group)"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:442
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:677
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:903
 msgid "Paste here"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:548
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1215
 msgid "Path"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:195
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:222
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:283
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:367
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:417
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:485
 msgid "Permissions"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:381
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:616
 msgid "Permissions (octal)"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:411
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:646
 msgid "Permissions must be three or four octal digits, e.g. 644."
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:239
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:241
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:434
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:436
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:879
 msgid "Properties"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:379
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:614
 msgid "Properties of %s"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:568
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:906
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1262
 msgid "Refresh"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:244
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:246
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:439
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:441
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:878
 msgid "Rename"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:471
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:718
 msgid "Rename \"%s\" to:"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:328
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:552
 msgid "Save"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:362
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:595
 msgid "Saved."
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:360
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:589
 msgid "Saving…"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:213
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:883
+msgid "Select"
+msgstr ""
+
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:404
 msgid "Select %s"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:194
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:221
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:282
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:884
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:905
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1196
+msgid "Select all"
+msgstr ""
+
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:366
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:416
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:484
 msgid "Size"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:459
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:705
+msgid "Something with that name is already here, and nothing is overwritten."
+msgstr ""
+
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:696
 msgid "Source and destination are the same directory."
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:316
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:518
 msgid "The file is %.1f MB; this editor opens files up to 1 MB."
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:257
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:460
 msgid "This directory is empty."
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:431
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:666
 msgid "Tick the files you want first."
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:193
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:220
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:281
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1244
+msgid "Tiles"
+msgstr ""
+
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:365
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:415
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:483
 msgid "Type"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:567
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1261
 msgid "Up"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/footstrap-files/browser.js:578
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1271
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:1274
 msgid "Upload"
+msgstr ""
+
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:792
+msgid "Uploaded %d of %d…"
+msgstr ""
+
+#: htdocs/luci-static/resources/view/footstrap-files/browser.js:781
+msgid "Uploading %d file(s)…"
 msgstr ""

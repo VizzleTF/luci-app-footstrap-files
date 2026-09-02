@@ -20,7 +20,8 @@ set -eu
 cd "$(dirname "$0")/.."
 
 PKG=luci-app-footstrap-files
-# The view's own modules. NOT the vendored editor under htdocs/luci-static/footstrap-files/vendor:
+# The view's own modules, and only those: the glob does not descend, so the vendored editor in
+# `vendor/` beside them is left alone —
 # that is third-party ES-module code we ship verbatim, it is not ours to reformat, and jsmin — which
 # predates ES modules — would mangle it. The buildbot leaves it alone too (LUCI_MINIFY_JS applies to
 # resources/), so minifying it here would test something nobody ships.

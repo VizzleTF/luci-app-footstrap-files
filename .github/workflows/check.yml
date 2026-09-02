@@ -100,12 +100,15 @@ jobs:
       - uses: actions/checkout@v5
       # This page renders names taken off a filesystem. E() sets text; innerHTML would make a file
       # called `<img onerror=…>` executable markup, and the whole XSS story of this package is that
-      # there is no such sink. The vendored editor is excluded: third-party code, shipped verbatim,
-      # not ours to edit.
+      # there is no such sink.
+      #
+      # `--exclude-dir=vendor` and not a path list: the editor lives under the view's own directory
+      # now (where a LuCI app keeps what belongs to one view), so a plain recursive grep would read
+      # third-party code we ship verbatim and fail on somebody else's markup.
       - name: no innerHTML, no insertAdjacentHTML, no document.write
         run: |
           set -eu
-          if grep -rnE 'innerHTML|insertAdjacentHTML|document\.write' \
+          if grep -rnE --exclude-dir=vendor 'innerHTML|insertAdjacentHTML|document\.write' \
                luci-app-footstrap-files/htdocs/luci-static/resources; then
             echo "A name from the filesystem must never reach a markup sink." >&2
             exit 1
@@ -115,4 +118,4 @@ jobs:
       # The vendored tree keeps its licence beside it, or this package redistributes MIT code with
       # nothing saying so.
       - name: the vendored editor keeps its licence
-        run: test -f luci-app-footstrap-files/htdocs/luci-static/footstrap-files/vendor/pce/LICENSE
+        run: test -f luci-app-footstrap-files/htdocs/luci-static/resources/view/footstrap-files/vendor/pce/LICENSE
