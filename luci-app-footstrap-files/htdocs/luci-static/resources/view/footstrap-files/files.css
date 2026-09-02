@@ -243,6 +243,55 @@
 
 .fsf-editor .prism-search .pce-input button { margin-left: 1px; }
 
+/* ---- the hex editor -------------------------------------------------------------------------
+ *
+ * Three columns of monospace: the offset, sixteen bytes, and what those bytes say if they say
+ * anything. The box scrolls itself — the lines inside it are drawn for the window only, so the
+ * scrollbar belongs to a spacer of the full height rather than to the content.
+ *
+ * `tabular-nums` and a fixed cell width, because a hex dump whose columns do not line up is worth
+ * less than no hex dump: the eye reads the grid, not the digits. */
+.fsf-hex {
+	height: 100%;
+	overflow: auto;
+	outline: none;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: .8125rem;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.5;
+	background: var(--background-color-high, #fff);
+}
+
+.fsf-hex-spacer { position: relative; }
+.fsf-hex-layer { position: absolute; top: 0; left: 0; right: 0; will-change: transform; }
+
+.fsf-hex-line { display: flex; gap: .75rem; padding: 0 .5rem; white-space: pre; }
+
+.fsf-hex-off { flex: none; color: var(--text-color-low, #999); }
+.fsf-hex-bytes { flex: none; }
+.fsf-hex-text { color: var(--text-color-medium, #666); }
+
+/* Each byte is its own box so the caret can sit on one, and so a click knows which. The width is
+ * two characters plus the gap the eye needs between pairs. */
+.fsf-hex-b {
+	display: inline-block;
+	width: 1.6em;
+	text-align: center;
+	border-radius: 2px;
+}
+
+/* An eighth of the width between the two halves of the line, the way od(1) breaks it up. */
+.fsf-hex-b:nth-child(8n) { margin-right: .5em; }
+
+.fsf-hex-at {
+	background: var(--primary-color-medium, #0069d9);
+	color: var(--on-primary-color, #fff);
+}
+
+/* A byte the reader typed, so an unsaved change is visible without diffing anything. */
+.fsf-hex-edited { color: var(--error-color-medium, #c9302c); font-weight: 700; }
+.fsf-hex-at.fsf-hex-edited { color: var(--on-primary-color, #fff); }
+
 /* ---- the card stack -----------------------------------------------------------------------------
  *
  * At the width where a theme turns the table into one card per file, the name becomes the card's

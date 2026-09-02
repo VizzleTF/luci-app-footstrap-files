@@ -63,6 +63,10 @@ and `.ipk` with a usign signature beside each file.
   `user:group`, recursive only if the box is ticked
 - **Edit** — syntax highlighting, line numbers, bracket matching, and find-and-replace behind a
   magnifier button beside Save (Ctrl/Cmd+F too, where there is a keyboard); files up to 1 MB
+- **Hex** — any file can be opened as bytes instead: offsets, sixteen columns, the ASCII beside
+  them, type over a byte and save. The file's mode and owner survive the save
+- **With a mouse** — drag a rectangle over empty space to select what it touches, drag a file (or a
+  whole selection) onto a folder to move it there
 - **On a phone** — the listing cards up per file, and the editor is a real `<textarea>` underneath,
   so the keyboard, IME and autocorrect are the phone's own
 

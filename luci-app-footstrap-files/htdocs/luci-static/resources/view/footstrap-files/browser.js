@@ -5,7 +5,6 @@
 'require ui';
 'require request';
 'require rpc';
-'require view.footstrap-files.editor as editor';
 
 /* A file manager for the router, written as ordinary LuCI markup.
  *
@@ -554,7 +553,14 @@ return view.extend({
 			return fail(_('Cannot edit %s').format(entry.name),
 				_('The file is %.1f MB; this editor opens files up to 1 MB.').format(entry.size / 1048576));
 
-		return fs.read_direct(path, 'text').then((text) => {
+		/* THE EDITOR IS FETCHED WHEN A FILE IS OPENED, not with the listing. It used to be a
+		 * `require` pragma, which means LuCI loads it — and grammars.js behind it — for every
+		 * reader who only ever looks at a directory. Measured on the stand: editor.js and
+		 * grammars.js came down on a plain listing and did nothing there. */
+		return Promise.all([
+			L.require('view.footstrap-files.editor'),
+			fs.read_direct(path, 'text'),
+		]).then(([ editor, text ]) => {
 			const box = E('div', { class: 'fsf-editor' });
 			const status = E('span', { class: 'fsf-editor-status' }, '');
 
@@ -674,7 +680,84 @@ return view.extend({
 			this._escEdit = null;
 		}
 		this.editing = null;
+		this.hexing = null;
 		ui.hideModal();
+	},
+
+	/* BYTES, NOT TEXT. `fs.write` sends a string and the ubus `file write` it calls understands
+	 * `base64` — the parameter luci-base's own wrapper does not declare. Measured against the
+	 * stand: one call carries 16 KB and 64 KB is refused outright ("No related RPC reply"), so a
+	 * binary save is chunked with `append`. That path also KEEPS THE FILE'S MODE AND OWNER, because
+	 * it writes into the existing inode; the same save through cgi-upload turned an
+	 * `-rw-r----- nobody:nogroup` file into `-rw------- root:root`, which for an init script or a
+	 * key file is a quiet disaster. */
+	writeBytes: rpc.declare({ object: 'file', method: 'write', params: [ 'path', 'data', 'append', 'base64' ] }),
+
+	/* THE HEX EDITOR IS FETCHED WHEN IT IS OPENED, not with the page: a reader who never looks at a
+	 * binary never pays for it. `L.require` resolves the same module path the pragmas use. */
+	hexEdit(path, entry) {
+		if (entry && entry.size > this.MAX_EDIT)
+			return fail(_('Cannot open %s').format(entry.name),
+				_('The file is %.1f MB; this editor opens files up to 1 MB.').format(entry.size / 1048576));
+
+		return Promise.all([
+			L.require('view.footstrap-files.hex'),
+			fs.read_direct(path, 'blob').then((blob) => blob.arrayBuffer()),
+		]).then(([ hex, buf ]) => {
+			const box = E('div', { class: 'fsf-editor fsf-hex-box' });
+			const status = E('span', { class: 'fsf-editor-status' }, '');
+			ui.showModal(path, [
+				E('div', { class: 'fsf-modal' }, box),
+				E('div', { class: 'right fsf-modal-actions' }, [
+					status,
+					' ',
+					E('button', {
+						class: 'btn cbi-button cbi-button-action',
+						click: ui.createHandlerFn(this, () => this.saveBytes(path, status)),
+					}, _('Save')),
+					' ',
+					E('button', {
+						class: 'btn cbi-button cbi-button-negative',
+						click: ui.createHandlerFn(this, () => this.closeEditor()),
+					}, _('Close')),
+				]),
+			], 'fsf-modal-dialog');
+
+			this._escEdit = (ev) => { if (ev.key === 'Escape') this.closeEditor(); };
+			document.addEventListener('keydown', this._escEdit, true);
+			this.hexing = hex.open(box, buf);
+			this.hexMod = hex;
+		}).catch((err) => { this.closeEditor(); fail(_('Cannot read %s').format(path), err); });
+	},
+
+	/* Chunked, because one ubus message carries 16 KB of base64 and no more. The first chunk
+	 * truncates the file and every one after it appends, so a save that dies half way leaves a
+	 * short file rather than a mixture of old and new bytes — and says so. */
+	saveBytes(path, status) {
+		const h = this.hexing;
+		if (!h) return;
+		const bytes = h.value();
+		const CHUNK = 8192;
+		status.textContent = _('Saving…');
+		let at = 0;
+		const step = () => {
+			if (at >= bytes.length) return Promise.resolve();
+			const end = Math.min(bytes.length, at + CHUNK);
+			const first = at === 0;
+			const data = this.hexMod.base64(bytes, at, end);
+			at = end;
+			return this.writeBytes(path, data, !first, true).then(() => {
+				status.textContent = _('Saving… %d%%').format(Math.round(at * 100 / bytes.length));
+				return step();
+			});
+		};
+		/* An empty file still has to be written, or Save on a file whose every byte was deleted
+		 * would do nothing at all. */
+		const run = bytes.length ? step() : this.writeBytes(path, '', false, true);
+		return run.then(() => {
+			status.textContent = _('Saved.');
+			return this.refresh();
+		}).catch((err) => { status.textContent = ''; fail(_('Cannot save %s').format(path), err); });
 	},
 
 	/* `fs.write` and not cgi-io: the ubus call is the one with a permission check this package's ACL
@@ -1103,6 +1186,10 @@ return view.extend({
 
 		return [
 			dir ? item(_('Open'), () => this.go(full)) : item(_('Edit'), () => this.edit(full, entry)),
+			/* A binary has no business in a text editor: opened there its bytes come back as
+			 * replacement characters and saving would write those back. This is the way in for a
+			 * firmware image, a .ipk or anything else that is not text. */
+			dir ? '' : item(_('Open as hex'), () => this.hexEdit(full, entry)),
 			dir ? '' : item(_('Download'), () => this.download(full, entry.name)),
 			item(_('Rename'), () => this.rename(full, entry.name)),
 			item(_('Properties'), () => this.properties(full, entry)),

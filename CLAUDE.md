@@ -161,6 +161,23 @@ table markup. The three that cost the most:
   nothing fails: the catalogue is staged, packaged by nobody, and the language never reaches a
   router with the build still green — which is why `tools/i18n-packages.sh` compares the languages
   on disk against the packages declared for them, in both directions, and runs in T0 and in CI.
+- **A HEX EDITOR EXISTS AND IT IS FETCHED ONLY WHEN OPENED.** `hex.js` is 2.8 KB against the stock
+  app's 40 KB — the difference is its ASCII/HEX/RegExp search, its settings panel and the `<style>`
+  it injects into the document. Virtual scrolling is not an optimisation here: at 16 bytes a line a
+  1 MB file is 65,536 lines, so what exists is a spacer of the full height and a window of the lines
+  on screen. The line height is MEASURED off a probe row, because a guess drifts a pixel per line.
+- **A BINARY IS SAVED THROUGH ubus `file write` WITH `base64` AND `append`, never through
+  cgi-upload.** Measured against the stand: one ubus message carries 16 KB and 64 KB is refused
+  ("No related RPC reply"), so the save is chunked at 8 KB — 300 KB in 2.8 s. The reason it is not
+  cgi-upload, which would do it in one request: upload REPLACES the file and an
+  `-rw-r----- nobody:nogroup` came back `-rw------- root:root`. ubus writes into the existing inode
+  and the mode and the owner survive. luci-base's own `fs.write` cannot do this — it does not
+  declare the `base64` parameter, so this package declares its own `rpc.declare`.
+- **NOTHING BUT THE LISTING LOADS WITH THE LISTING.** `editor.js`, `grammars.js`, `hex.js` and the
+  whole vendored tree are `L.require`d at the moment a file is opened. This was not always true:
+  editor.js and grammars.js were `require` pragmas and came down for every reader who only looked at
+  a directory. A plain listing now fetches browser.js and files.css and nothing else — checked by
+  watching the network, not by reading the code.
 - **The payload is minified on the way out, never in the checkout.** `tools/stage.sh` runs
   `minify-js.mjs` (terser) over the view's own modules and `minify-css.sh` over `files.css`:
   110,255 bytes of payload become 68,534. The SDK path still uses jsmin, which is what T0 gates, so
