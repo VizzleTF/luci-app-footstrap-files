@@ -1,0 +1,19 @@
+# A PIN THAT NOTHING UPDATES IS A HOLE THAT NOTHING CLOSES.
+#
+# check.yml and release.yml reference every action by commit SHA, because a tag is a name its owner
+# can repoint — but the same immutability means a pinned action never picks up its own security
+# fixes. Dependabot rewrites the SHA together with the `# vX.Y.Z` comment beside it, which is what
+# makes the pair readable and the pin maintainable at the same time.
+#
+# `github-actions` only: npm here is terser and acorn, dev dependencies that never reach a router,
+# and owfeed is pinned by the SHA in release.yml rather than by a manifest.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      # One PR for the lot: these move together and each one costs a full CI run.
+      actions:
+        patterns: [ '*' ]

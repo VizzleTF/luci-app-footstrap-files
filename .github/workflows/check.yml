@@ -3,6 +3,10 @@
 # What is NOT here, and deliberately: installing the built packages on a real 25.12 and a real 24.10
 # userland and driving the page against them. That claim needs a router, is made by hand before
 # every release, and is written down in CLAUDE.md under "Verifying".
+#
+# The actions are pinned to commits rather than tags, for the reason release.yml sets out at length:
+# a tag is a name its owner can repoint. These jobs hold no secrets, but they are the gates a tag has
+# to pass, and a gate that a moved tag can rewrite is not one.
 
 name: check
 
@@ -23,7 +27,7 @@ jobs:
     name: parse, and parse again after jsmin
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # tools/t0.sh fetches jsmin.c at the commit in luci-upstream.pin and verifies its sha256
       # before compiling it: the minifier that runs on the OpenWrt buildbot is the one that decides
       # whether a module still parses after a build, so the gate runs the real thing rather than a
@@ -34,7 +38,7 @@ jobs:
     name: the catalogue is current and complete
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: install gettext
         run: sudo apt-get update && sudo apt-get install -y gettext
       # An uncompiled _() falls through to its English msgid and renders in English with nothing
@@ -52,7 +56,7 @@ jobs:
     name: the package's load-bearing lines
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # csstidy, which luci.mk runs by default, is fifteen years older than the syntax this sheet
       # uses (color-mix(), :has()) and drops what it cannot parse while exiting 0. The owfeed path
@@ -109,8 +113,8 @@ jobs:
     name: eslint, stylelint and the stylesheet contract
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
           cache: npm
@@ -129,11 +133,11 @@ jobs:
     name: the staged payload is minified
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         # tools/stage.sh falls back to `git describe` for the version, and a shallow clone has no
         # tags to describe from.
         with: { fetch-depth: 0 }
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
           cache: npm
@@ -150,7 +154,7 @@ jobs:
           set -eu
           view=dist/root/www/luci-static/resources/view/footstrap-files
           src=luci-app-footstrap-files/htdocs/luci-static/resources/view/footstrap-files
-          for f in browser.js editor.js grammars.js files.css editor.css; do
+          for f in browser.js editor.js grammars.js hex.js files.css editor.css; do
             a=$(wc -c < "$src/$f"); b=$(wc -c < "$view/$f")
             [ "$b" -lt "$a" ] || { echo "$f: staged $b bytes against $a in the source - not minified" >&2; exit 1; }
             printf '%s: %s -> %s\n' "$f" "$a" "$b"
@@ -216,7 +220,7 @@ jobs:
         run: |
           set -eu
           for f in dist/root/www/luci-static/resources/view/footstrap-files/*.js; do
-            node -e "new Function(require('fs').readFileSync('$f','utf8'))"
+            node -e "new Function(require('fs').readFileSync(process.argv[1],'utf8'))" "$f"
             echo "$(basename "$f") parses"
           done
 
@@ -224,7 +228,7 @@ jobs:
     name: file names are data
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # This page renders names taken off a filesystem. E() sets text; innerHTML would make a file
       # called `<img onerror=…>` executable markup, and the whole XSS story of this package is that
       # there is no such sink.
@@ -235,12 +239,16 @@ jobs:
       # THE GREP BELOW IS NOT ENOUGH, and that is worth stating where it lives: luci-base's own
       # `E()` assigns a bare string child to `innerHTML`, so the sink is in a file this grep never
       # reads. Every module that builds DOM shadows `E` with a wrapper that wraps a primitive in an
-      # array; this checks that the wrapper is there and that nobody reaches around it.
+      # array; dom-sinks.mjs checks that the wrapper is there and that nobody reaches around it —
+      # including through `dom.content`, which reaches dom.append without E() ever being called.
+      # shims.mjs then RUNS the wrappers, lifted out of the shipped modules, against luci-base's own
+      # append(): a gate that only reads call sites is happy the day the wrapper stops wrapping.
       - name: the markup sink stays closed
         run: |
           set -eu
           npm ci --ignore-scripts
           node tools/dom-sinks.mjs
+          node tools/shims.mjs
 
       - name: no innerHTML, no insertAdjacentHTML, no document.write
         run: |
