@@ -11,6 +11,17 @@
 # would be one more thing to rotate and one more way for the two halves of one install to disagree
 # about who signed them. `release.pub` in this repository is that same public half, and
 # `verify-with` holds the release job to it.
+#
+# EVERY ACTION IS PINNED TO A COMMIT, never to a tag. A tag is a pointer its owner moves with one
+# `git tag -f`, so `@v0.5.1` is a promise about a name and not about any particular bytes — and this
+# is the workflow that carries `contents: write` and BOTH signing keys, and that produces the package
+# a router installs and whose post-install runs as root. Nothing downstream would notice: the tag
+# still reads v0.5.1, `verify-with` runs inside the same job, and the feed pins the key, not the
+# build. The comment after each SHA is the tag it was cut from, and .github/dependabot.yml is what
+# rewrites the pair — a pin with nothing updating it is just a way to sit on a known hole for ever.
+#
+# owfeed's v0.5.1 is an ANNOTATED tag: `git ls-remote --tags` prints the tag OBJECT (d380f471…) and
+# what a workflow reference needs is the COMMIT under it — the `^{}` row, 07f81eca….
 
 name: release
 
@@ -33,12 +44,12 @@ jobs:
     timeout-minutes: 20
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # tools/stage.sh falls back to `git describe` when FOOTSTRAP_VERSION is unset, and a
           # shallow clone has no tags to describe from.
           fetch-depth: 0
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
           cache: npm
@@ -48,7 +59,7 @@ jobs:
       # bytes.
       - run: npm ci --ignore-scripts
 
-      - uses: owfeed/owfeed/setup@v0.5.1
+      - uses: owfeed/owfeed/setup@07f81eca5c78235161b0d59123c64631872bee8c # v0.5.1
         with:
           version: v0.5.1
 
@@ -75,7 +86,7 @@ jobs:
       # The NAME IS THE CONTRACT: the reusable release workflow downloads an artifact called
       # `owfeed-packages` and nothing else. Uploading it as `packages` builds fine, passes every
       # gate, and fails the release job with "Artifact not found" after the tag is already pushed.
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: owfeed-packages
           path: |
@@ -89,7 +100,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
-    uses: owfeed/owfeed/.github/workflows/package.yml@v0.5.1
+    uses: owfeed/owfeed/.github/workflows/package.yml@07f81eca5c78235161b0d59123c64631872bee8c # v0.5.1
     secrets:
       # Both already exist in the luci-theme-footstrap repository and have to be copied here; this
       # repository signs with the same author key.
