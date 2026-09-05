@@ -48,6 +48,31 @@ function E() {
 	return window.E.apply(null, args);
 }
 
+/* ---- fill(), THE SAME SINK ONE DOOR ALONG -----------------------------------------------------
+ *
+ * `E()` IS ONLY ONE OF dom.append's CALLERS, and the shim above therefore closes only one of the
+ * doors. `dom.content(node, children)` empties the node and hands the children to that same
+ * function, so its string branch is the same `node.innerHTML = ${children}` — reached without
+ * `E()` ever being called, and invisible to a shim that wraps E's last argument.
+ *
+ * A FUNCTION IS THE SINK AT ONE REMOVE. dom.append does
+ *
+ *     else if (typeof(children) === 'function') { return this.append(node, children(node)); }
+ *
+ * — it CALLS what it is given and recurses on the result, so `fill(node, () => entry.name)` would
+ * land a file name on innerHTML just as a bare string does. Both are normalised here.
+ *
+ * Nothing in this module passes either shape today. This is what keeps it that way, in the shape
+ * the E() shim already established: one function, not a rule to be remembered at every call site.
+ * Anything that is not an array and not a node becomes a ONE-ELEMENT ARRAY — the branch that builds
+ * text nodes — and `[ null ]` appends nothing, exactly as a bare `null` did.
+ *
+ * `dom.content` is called HERE AND NOWHERE ELSE in this module, the way `window.E` is reached only
+ * inside the shim above. tools/dom-sinks.mjs holds both. */
+function fill(node, children) {
+	return dom.content(node, (Array.isArray(children) || dom.elem(children)) ? children : [ children ]);
+}
+
 const ROW = 16;			/* bytes per line — the width every hex dump has had since od(1) */
 const OVERSCAN = 6;		/* lines drawn above and below the window, so a fast scroll has cover */
 
@@ -113,7 +138,7 @@ return baseclass.extend({
 			const out = [];
 			for (let n = top; n < Math.min(lines, top + count); n++) out.push(line(n));
 			layer.style.transform = 'translateY(' + (top * LH) + 'px)';
-			dom.content(layer, out);
+			fill(layer, out);
 		};
 
 		/* The caret is a class on one cell, so moving it redraws nothing but the two cells involved
@@ -145,10 +170,13 @@ return baseclass.extend({
 
 		view.addEventListener('keydown', (ev) => {
 			const perScreen = Math.max(1, Math.floor(view.clientHeight / LH) - 1) * ROW;
-			const keys = {
+			/* A null prototype: the key is `ev.key`, which this page does not choose, and an
+			 * inherited `constructor` would pass the `!= null` test below and move the caret by a
+			 * function — NaN, and a caret that cannot be moved back. */
+			const keys = Object.assign(Object.create(null), {
 				ArrowLeft: -1, ArrowRight: 1, ArrowUp: -ROW, ArrowDown: ROW,
 				PageUp: -perScreen, PageDown: perScreen,
-			};
+			});
 			if (keys[ev.key] != null) { ev.preventDefault(); return move(caret + keys[ev.key]); }
 			if (ev.key === 'Home') { ev.preventDefault(); return move(ev.ctrlKey ? 0 : caret - (caret % ROW)); }
 			if (ev.key === 'End') { ev.preventDefault(); return move(ev.ctrlKey ? data.length - 1 : caret - (caret % ROW) + ROW - 1); }
@@ -179,7 +207,7 @@ return baseclass.extend({
 			else nibble = 1;
 		});
 
-		dom.content(container, view);
+		fill(container, view);
 		draw(true);
 		view.focus();
 

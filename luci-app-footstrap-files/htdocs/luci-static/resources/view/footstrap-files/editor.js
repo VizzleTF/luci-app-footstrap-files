@@ -74,9 +74,15 @@ const V = L.resource('view/footstrap-files/vendor/pce');
  *
  * `ini` and `nginx` had grammars of their own and no longer do: a router that has nginx at all is
  * rare, `.ini` rarer still, and both are closer to shell than either was to uci. */
-const BY_EXT = {
+/* A NULL PROTOTYPE, BECAUSE THE KEY IS THE FILE'S OWN EXTENSION. `BY_EXT[ext]` is indexed with
+ * whatever follows the last dot in a name off the router, and a plain object literal answers
+ * `constructor` with a function — which `?? 'shell'` does not replace, a function being anything but
+ * nullish. `knownLanguage()` below catches it a second time (the value is not in GRAMMARS, so the
+ * language comes out null), but a table that answers questions nobody asked it is the wrong half of
+ * that pair to rely on. A file called `x.constructor` is all it takes to ask. */
+const BY_EXT = Object.assign(Object.create(null), {
 	json: 'json', sh: 'shell', conf: 'shell', ini: 'shell', nginx: 'shell',
-};
+});
 
 const BY_PATH = [
 	[ /^\/etc\/config\//, 'uci' ],
