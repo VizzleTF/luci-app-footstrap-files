@@ -64,11 +64,11 @@ ok $? "jsmin builds"
 # ---- the modules ------------------------------------------------------------
 for f in "$RES"/*.js; do
 	n=$(basename "$f")
-	node -e "new Function(require('fs').readFileSync('$f','utf8'))" 2>/dev/null
+	node -e "new Function(require('fs').readFileSync(process.argv[1],'utf8'))" "$f" 2>/dev/null
 	ok $? "  $n parses"
 
 	"$work/jsmin" < "$f" > "$work/min.js" 2>/dev/null
-	node -e "new Function(require('fs').readFileSync('$work/min.js','utf8'))" 2>/dev/null
+	node -e "new Function(require('fs').readFileSync(process.argv[1],'utf8'))" "$work/min.js" 2>/dev/null
 	ok $? "  $n parses after jsmin" "$(wc -c < "$work/min.js") bytes out of $(wc -c < "$f")"
 done
 
