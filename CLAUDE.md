@@ -165,6 +165,26 @@ table markup. The three that cost the most:
   in an array; `ui.showModal(title, …)` is the same sink one level up (`dom.create('h4', {},
   title)`) and takes an array too. `tools/dom-sinks.mjs` holds both, in T0 and in CI — the old grep
   for `innerHTML` could not, because the sink is in luci-base and not in this tree.
+- **`E()` IS ONLY ONE DOOR INTO `dom.append`, AND `fill()` IS THE OTHER.** `dom.content(node,
+  children)` empties the node and calls `dom.append` DIRECTLY — same string branch, same
+  `innerHTML`, no `E()` anywhere on the path, so the `E` shim never sees it. A FUNCTION is that sink
+  at one remove: `append` does `if (typeof(children) === 'function') return this.append(node,
+  children(node))`, so a thunk returning a name lands on `innerHTML` exactly as the name would.
+  `fill()` is the shim for both, in the shape `E()` already established — anything that is not an
+  array and not a node becomes a one-element array — and **`dom.content` is called once per module,
+  inside it**. `dom.create` and `dom.parse` are barred outright: the first reaches around the `E`
+  wrapper, the second IS `parseFromString(s, 'text/html')`.
+- **THE SHAPE CHECK ON `ui.showModal`/`ui.addNotification` IS AN ALLOWLIST.** Those two are in
+  luci-base and call the GLOBAL `E` and the GLOBAL `dom`, so no shim of ours reaches them and their
+  arguments are judged by shape. Only what the checker can prove by looking — an array literal, a
+  literal `null`, a call to the module's own `E()` — passes. A bare identifier used to be allowed on
+  the comment "a node held in a variable", which the AST cannot know and a string variable satisfies
+  just as well; `showModal`'s children were not checked at all.
+- **A GATE THAT ONLY READS CALL SITES IS HAPPY THE DAY THE WRAPPER STOPS WRAPPING.** So
+  `tools/shims.mjs` LIFTS `E()` and `fill()` out of the shipped modules by their AST and runs them
+  against `dom.append`/`dom.create` as luci-base writes them, with `a<img src=q onerror=…>.txt` as
+  the name: text node, or the gate fails. It carries a copy of those thirty lines of luci-base and
+  says so — if `append()` ever grows a branch, that file is where it has to be noticed.
 - **The vendored editor is pruned by reachability**, not by hand: `setups/index.js` pulls a barrel
   that imports every grammar (263 files, measured). What is left of it is the editor and the search
   widget — 17 files. Three things that used to come from it do not any more, and each was measured
@@ -252,6 +272,14 @@ table markup. The three that cost the most:
   file on a router — so `tools/minify-vendor.mjs` compares every file's import and export lists
   before and after and refuses to write one whose seam moved, and CI re-checks the same thing
   against the staged tree. The vendored CSS is already minified by that build and ships verbatim.
+- **EVERY ACTION IS PINNED TO A COMMIT, never to a tag**, and `.github/dependabot.yml` is what keeps
+  the pins from freezing. A tag is a pointer its owner moves with one `git tag -f`, so `@v0.5.1`
+  promises a name and not any particular bytes — and `release.yml` is where `contents: write` and
+  BOTH signing keys live, producing the package a router installs and whose post-install runs as
+  root. `verify-with: release.pub` does not cover this: it runs inside the same job. The comment
+  after each SHA is the tag it was cut from. **An annotated tag needs the `^{}` row**: `git ls-remote
+  --tags` prints the tag OBJECT, and a workflow reference resolves only the commit under it —
+  owfeed's v0.5.1 is `07f81eca`, not the `d380f471` the plain listing shows.
 
 ## Commands
 
