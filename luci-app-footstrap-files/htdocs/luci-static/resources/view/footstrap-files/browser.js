@@ -49,6 +49,31 @@ function E() {
 	return window.E.apply(null, args);
 }
 
+/* ---- fill(), THE SAME SINK ONE DOOR ALONG -----------------------------------------------------
+ *
+ * `E()` IS ONLY ONE OF dom.append's CALLERS, and the shim above therefore closes only one of the
+ * doors. `dom.content(node, children)` empties the node and hands the children to that same
+ * function, so its string branch is the same `node.innerHTML = ${children}` — reached without
+ * `E()` ever being called, and invisible to a shim that wraps E's last argument.
+ *
+ * A FUNCTION IS THE SINK AT ONE REMOVE. dom.append does
+ *
+ *     else if (typeof(children) === 'function') { return this.append(node, children(node)); }
+ *
+ * — it CALLS what it is given and recurses on the result, so `fill(node, () => entry.name)` would
+ * land a file name on innerHTML just as a bare string does. Both are normalised here.
+ *
+ * Nothing in this module passes either shape today. This is what keeps it that way, in the shape
+ * the E() shim already established: one function, not a rule to be remembered at every call site.
+ * Anything that is not an array and not a node becomes a ONE-ELEMENT ARRAY — the branch that builds
+ * text nodes — and `[ null ]` appends nothing, exactly as a bare `null` did.
+ *
+ * `dom.content` is called HERE AND NOWHERE ELSE in this module, the way `window.E` is reached only
+ * inside the shim above. tools/dom-sinks.mjs holds both. */
+function fill(node, children) {
+	return dom.content(node, (Array.isArray(children) || dom.elem(children)) ? children : [ children ]);
+}
+
 const isDir = (e) => e.type === 'directory' || (e.type === 'symlink' && e.target && e.target.type === 'directory');
 
 /* `/a/b` + `c` -> `/a/b/c`, and no `//` however the two halves end. */
@@ -86,7 +111,13 @@ function fmtSize(entry) {
 /* `drwxr-xr-x`, the way `ls -l` writes it: ubus hands the mode over as a number, and the octal on
  * its own ("493") is unreadable. The type letter comes from the entry rather than from the mode
  * bits, because `list` already answers that question and a symlink is worth seeing. */
-const TYPE_LETTER = { directory: 'd', symlink: 'l', block: 'b', char: 'c', fifo: 'p', socket: 's', file: '-' };
+/* A NULL PROTOTYPE, BECAUSE THE KEY COMES OFF THE ROUTER. `TYPE_LETTER[entry.type]` reads a table
+ * with a string this page did not choose, and an ordinary object literal answers `constructor`,
+ * `toString` and `valueOf` with something inherited — which `?? '-'` then does NOT replace, because
+ * a function is not nullish. rpcd only ever sends the seven types below, so this is not a hole
+ * today; a lookup table indexed by a name from somewhere else should not depend on that. */
+const TYPE_LETTER = Object.assign(Object.create(null),
+	{ directory: 'd', symlink: 'l', block: 'b', char: 'c', fifo: 'p', socket: 's', file: '-' });
 
 function fmtMode(entry) {
 	const m = entry.mode;
@@ -371,7 +402,7 @@ return view.extend({
 		return fs.list(this.path).catch((err) => { fail(_('Cannot read %s').format(this.path), err); return []; });
 	},
 
-	/* One redraw for everything: read the directory, then replace the table's body. `dom.content()`
+	/* One redraw for everything: read the directory, then replace the table's body. `fill()`
 	 * on the tbody rather than a full re-render of the page keeps the toolbar's focus where the
 	 * reader left it. */
 	refresh() {
@@ -385,7 +416,7 @@ return view.extend({
 			const here = new Set(entries.map((e) => join(this.path, e.name)));
 			for (const p of Array.from(this.selection)) if (!here.has(p)) this.selection.delete(p);
 			this.drawListing();
-			dom.content(this.crumbs, this.breadcrumbs());
+			fill(this.crumbs, this.breadcrumbs());
 			this.pathInput.value = this.path;
 			this.closeSuggest();
 			/* The suggestion cache is a listing too, and an operation just changed one: a folder
@@ -1752,7 +1783,7 @@ return view.extend({
 	},
 
 	/* TICKING SOMETHING REDRAWS NOTHING. Rebuilding the listing on every toggle is what made the
-	 * page jump: `dom.content()` throws the rows away and builds them again, the document loses its
+	 * page jump: `fill()` throws the rows away and builds them again, the document loses its
 	 * height for a frame, and the browser scrolls — once per file, right under the finger doing the
 	 * selecting. Only the classes, the ARIA state and the tick itself change here; the bar redraws
 	 * because its count did, and it keeps its height while doing so. */
@@ -1859,7 +1890,7 @@ return view.extend({
 
 	drawListing() {
 		const grid = (this.mode || this.viewMode()) === 'grid';
-		dom.content(this.listing, grid
+		fill(this.listing, grid
 			? E('div', { class: 'fsf-grid', role: 'listbox', 'aria-multiselectable': 'true' }, this.tiles())
 			: E('table', { class: 'table', role: 'grid', 'aria-multiselectable': 'true' }, [ this.titles() ].concat(this.rows())));
 		this.table = this.listing.querySelector('table.table');
@@ -1905,7 +1936,7 @@ return view.extend({
 		 * after a menu action that ticked something first. */
 		if (this.clipboard && !this.selectMode) {
 			const c = this.clipboard;
-			return dom.content(this.bar, [
+			return fill(this.bar, [
 				this.pathInput,
 				b('go', _('Go'), () => this.go(this.pathInput.value), 'cbi-button-action'),
 				b('up', _('Up'), () => this.go(parent(this.path))),
@@ -1926,7 +1957,7 @@ return view.extend({
 
 		if (this.selectMode) {
 			const n = this.selection.size;
-			return dom.content(this.bar, [
+			return fill(this.bar, [
 				E('span', { class: 'fsf-selcount' }, _('%d selected').format(n)),
 				b('checkAll', _('Select all'), () => this.selectAll()),
 				b('copy', _('Copy'), () => this.clip('copy'), null, !n),
@@ -1936,7 +1967,7 @@ return view.extend({
 			]);
 		}
 
-		dom.content(this.bar, [
+		fill(this.bar, [
 			this.pathInput,
 			b('go', _('Go'), () => this.go(this.pathInput.value), 'cbi-button-action'),
 			b('up', _('Up'), () => this.go(parent(this.path))),
