@@ -130,6 +130,7 @@ chmod +x "$DIST/scripts/"*
 # every other catalogue puts "Русский (Russian)". Unknown codes fail rather than ship that.
 lang_name() {
 	case "$1" in
+		es) echo 'Español (Spanish)' ;;
 		ru) echo 'Русский (Russian)' ;;
 		*)  echo '' ;;
 	esac

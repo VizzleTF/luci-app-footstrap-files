@@ -119,3 +119,19 @@ packages:
     # opkg has no conditional form of this — `Recommends:` is unconditional and would put Russian on
     # every 24.10 router — so that leg is covered by install.sh instead.
     install-if: [ "luci-app-footstrap-files={version}", "luci-i18n-base-ru" ]
+
+  - name: luci-i18n-footstrap-files-es
+    build: mkpkg
+    arch: noarch
+    version-from: file:./dist/VERSION
+    files: ./dist/i18n-es
+    description: "Footstrap files - Spanish translation"
+    depends: [luci-app-footstrap-files]
+    license: Apache-2.0
+    url: https://github.com/VizzleTF/luci-app-footstrap-files
+    maintainer: "VizzleTF <vizzletf47@gmail.com>"
+    i18n:
+      from: ./dist/po-es
+      basename: footstrap-files
+    # see luci-i18n-footstrap-files-ru above
+    install-if: [ "luci-app-footstrap-files={version}", "luci-i18n-base-es" ]
