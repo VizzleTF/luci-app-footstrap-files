@@ -47,8 +47,9 @@ Installing a feed's key tells the router to trust it for every package name, not
 [owfeed.org/install](https://owfeed.org/install/) says what that means and shows the same steps by
 hand.
 
-Russian: apk installs `luci-i18n-footstrap-files-ru` by itself on a router that already has
-`luci-i18n-base-ru`. opkg has no conditional form, so ask for it by name.
+Russian and Spanish: apk installs `luci-i18n-footstrap-files-ru` or `-es` by itself on a router that
+already has `luci-i18n-base-ru` or `luci-i18n-base-es`. opkg has no conditional form, so ask for the
+catalogue by name.
 
 For a router the feed cannot serve, every [release](../../releases/latest) carries the same `.apk`
 and `.ipk` with a usign signature beside each file.

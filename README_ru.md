@@ -47,8 +47,9 @@ opkg install luci-app-footstrap-files   # 24.10
 На [owfeed.org/install](https://owfeed.org/install/ru/) написано, чем это грозит, и показаны те же
 шаги вручную.
 
-Русский язык: apk сам поставит `luci-i18n-footstrap-files-ru` на роутер, где уже есть
-`luci-i18n-base-ru`. У opkg условной формы нет, поэтому там его просят по имени.
+Русский и испанский: apk сам поставит `luci-i18n-footstrap-files-ru` или `-es` на роутер, где уже
+есть `luci-i18n-base-ru` или `luci-i18n-base-es`. У opkg условной формы нет, поэтому там каталог
+просят по имени.
 
 Если фид роутеру недоступен, те же `.apk` и `.ipk` приложены к каждому
 [релизу](../../releases/latest), рядом с каждым файлом — подпись usign.
