@@ -59,7 +59,7 @@ jobs:
       # bytes.
       - run: npm ci --ignore-scripts
 
-      - uses: owfeed/owfeed/setup@07f81eca5c78235161b0d59123c64631872bee8c # v0.5.1
+      - uses: owfeed/owfeed/setup@2ec209c34dd470929653d56c8964c5fc764ed3d3 # v0.5.4
         with:
           version: v0.5.1
 
@@ -100,7 +100,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
-    uses: owfeed/owfeed/.github/workflows/package.yml@07f81eca5c78235161b0d59123c64631872bee8c # v0.5.1
+    uses: owfeed/owfeed/.github/workflows/package.yml@2ec209c34dd470929653d56c8964c5fc764ed3d3 # v0.5.4
     secrets:
       # Both already exist in the luci-theme-footstrap repository and have to be copied here; this
       # repository signs with the same author key.
