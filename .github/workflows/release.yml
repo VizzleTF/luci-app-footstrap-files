@@ -49,7 +49,7 @@ jobs:
           # tools/stage.sh falls back to `git describe` when FOOTSTRAP_VERSION is unset, and a
           # shallow clone has no tags to describe from.
           fetch-depth: 0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
@@ -59,7 +59,7 @@ jobs:
       # bytes.
       - run: npm ci --ignore-scripts
 
-      - uses: owfeed/owfeed/setup@07f81eca5c78235161b0d59123c64631872bee8c # v0.5.1
+      - uses: owfeed/owfeed/setup@be4da6ddbb2f78353f7e5ba291533ae5463de22c # v0.5.6
         with:
           version: v0.5.1
 
@@ -86,7 +86,7 @@ jobs:
       # The NAME IS THE CONTRACT: the reusable release workflow downloads an artifact called
       # `owfeed-packages` and nothing else. Uploading it as `packages` builds fine, passes every
       # gate, and fails the release job with "Artifact not found" after the tag is already pushed.
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: owfeed-packages
           path: |
@@ -100,7 +100,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
-    uses: owfeed/owfeed/.github/workflows/package.yml@07f81eca5c78235161b0d59123c64631872bee8c # v0.5.1
+    uses: owfeed/owfeed/.github/workflows/package.yml@be4da6ddbb2f78353f7e5ba291533ae5463de22c # v0.5.6
     secrets:
       # Both already exist in the luci-theme-footstrap repository and have to be copied here; this
       # repository signs with the same author key.
