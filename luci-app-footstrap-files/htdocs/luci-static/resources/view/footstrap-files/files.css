@@ -54,10 +54,11 @@
 	margin-bottom: .5rem;
 	padding: .375rem .625rem;
 	border-radius: 4px;
-	background: var(--background-color-low, #f5f5f5);
+	background: var(--main-bg);
 	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 	font-size: .8125rem;
 	overflow-wrap: anywhere;
+	display: none;
 }
 
 .fsf-crumbs a { color: var(--primary-color-medium, #0069d9); text-decoration: none; }
