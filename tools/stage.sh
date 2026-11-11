@@ -126,6 +126,7 @@ lang_name() {
 	case "$1" in
 		es) echo 'Español (Spanish)' ;;
 		ru) echo 'Русский (Russian)' ;;
+		zh_Hans) echo '简体中文 (Simplified Chinese)' ;;
 		*)  echo '' ;;
 	esac
 }
