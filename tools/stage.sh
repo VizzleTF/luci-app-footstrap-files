@@ -130,6 +130,7 @@ lang_name() {
 		*)  echo '' ;;
 	esac
 }
+. "$ROOT/tools/lang.sh"
 for d in "$SRC"/po/*/; do
 	lang=$(basename "$d")
 	[ "$lang" = templates ] && continue
@@ -139,14 +140,16 @@ for d in "$SRC"/po/*/; do
 		echo "stage: po/$lang has no label in lang_name() — add LuCI's own LUCI_LANG.$lang" >&2
 		exit 1
 	}
-	# po-<lang>/<lang>/: owfeed reads the catalogue out of a directory named for the language, the
-	# same shape the theme stages.
-	mkdir -p "$DIST/po-$lang/$lang" "$DIST/i18n-$lang/etc/uci-defaults"
-	cp "$d/footstrap-files.po" "$DIST/po-$lang/$lang/"
+	# The package's name for the language, which is not always the directory's: see tools/lang.sh.
+	pkg=$(lang_pkg "$lang")
+	# po-<pkg>/<pkg>/: owfeed reads the catalogue out of a directory named for the language, the
+	# same shape the theme stages, and names the .lmo after that directory.
+	mkdir -p "$DIST/po-$pkg/$pkg" "$DIST/i18n-$pkg/etc/uci-defaults"
+	cp "$d/footstrap-files.po" "$DIST/po-$pkg/$pkg/"
 	printf "uci set luci.languages.%s='%s'; uci commit luci\n" \
-		"$(echo "$lang" | tr - _)" "$label" \
-		> "$DIST/i18n-$lang/etc/uci-defaults/luci-i18n-footstrap-files-$lang"
-	chmod +x "$DIST/i18n-$lang/etc/uci-defaults/luci-i18n-footstrap-files-$lang"
+		"$(echo "$pkg" | tr - _)" "$label" \
+		> "$DIST/i18n-$pkg/etc/uci-defaults/luci-i18n-footstrap-files-$pkg"
+	chmod +x "$DIST/i18n-$pkg/etc/uci-defaults/luci-i18n-footstrap-files-$pkg"
 done
 
 echo "staged $(cat "$DIST/VERSION") into $DIST"

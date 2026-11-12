@@ -239,6 +239,10 @@ table markup. The three that cost the most:
   nothing fails: the catalogue is staged, packaged by nobody, and the language never reaches a
   router with the build still green — which is why `tools/i18n-packages.sh` compares the languages
   on disk against the packages declared for them, in both directions, and runs in T0 and in CI.
+  **The po/ directory and the package do not always share a name**: luci.mk's `LUCI_LC_ALIAS` turns
+  `po/zh_Hans` into `luci-i18n-*-zh-cn`, `*.zh-cn.lmo` and `luci.languages.zh_cn`, and owfeed refuses
+  a package name with a capital in it anyway. `tools/lang.sh` holds that mapping for stage.sh, the
+  gate and CI; such a language needs a fourth edit there, and `owfeed.yml` uses the alias throughout.
 - **A HEX EDITOR EXISTS AND IT IS FETCHED ONLY WHEN OPENED.** `hex.js` is 2.8 KB against the stock
   app's 40 KB — the difference is its ASCII/HEX/RegExp search, its settings panel and the `<style>`
   it injects into the document. Virtual scrolling is not an optimisation here: at 16 bytes a line a

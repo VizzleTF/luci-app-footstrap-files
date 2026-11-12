@@ -206,12 +206,14 @@ jobs:
           if find dist/root \( -name '*.lmo' -o -name '*.po' \) | grep -q .; then
             echo "a catalogue was staged into the app package" >&2; exit 1
           fi
+          . tools/lang.sh
           for d in luci-app-footstrap-files/po/*/; do
             lang=$(basename "$d")
             [ "$lang" = templates ] && continue
-            test -d "dist/i18n-$lang" || { echo "dist/i18n-$lang was not staged" >&2; exit 1; }
-            test -f "dist/po-$lang/$lang/footstrap-files.po" || { echo "dist/po-$lang is missing the catalogue" >&2; exit 1; }
-            echo "$lang: staged as its own package"
+            pkg=$(lang_pkg "$lang")
+            test -d "dist/i18n-$pkg" || { echo "dist/i18n-$pkg was not staged" >&2; exit 1; }
+            test -f "dist/po-$pkg/$pkg/footstrap-files.po" || { echo "dist/po-$pkg is missing the catalogue" >&2; exit 1; }
+            echo "$lang: staged as its own package ($pkg)"
           done
 
       # A LuCI resource file is evaluated inside a function wrapper, so this is the parse the router

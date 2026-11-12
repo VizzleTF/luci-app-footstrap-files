@@ -136,18 +136,18 @@ packages:
     # see luci-i18n-footstrap-files-ru above
     install-if: [ "luci-app-footstrap-files={version}", "luci-i18n-base-es" ]
 
-  - name: luci-i18n-footstrap-files-zh_Hans
+  - name: luci-i18n-footstrap-files-zh-cn
     build: mkpkg
     arch: noarch
     version-from: file:./dist/VERSION
-    files: ./dist/i18n-zh_Hans
+    files: ./dist/i18n-zh-cn
     description: "Footstrap files - Simplified Chinese translation"
     depends: [luci-app-footstrap-files]
     license: Apache-2.0
     url: https://github.com/VizzleTF/luci-app-footstrap-files
     maintainer: "VizzleTF <vizzletf47@gmail.com>"
     i18n:
-      from: ./dist/po-zh_Hans
+      from: ./dist/po-zh-cn
       basename: footstrap-files
     # see luci-i18n-footstrap-files-ru above
-    install-if: [ "luci-app-footstrap-files={version}", "luci-i18n-base-zh_Hans" ]
+    install-if: [ "luci-app-footstrap-files={version}", "luci-i18n-base-zh-cn" ]
