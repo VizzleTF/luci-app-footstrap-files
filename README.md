@@ -5,13 +5,8 @@
 [![owfeed](https://img.shields.io/endpoint?url=https://repo.owfeed.org/badge/luci-app-footstrap-files.json)](https://owfeed.org/install/)
 [![owfeed](https://img.shields.io/endpoint?url=https://repo.owfeed.org/badge/luci-app-footstrap-files-releases.json)](https://owfeed.org/install/)
 
-A file manager page for LuCI on OpenWrt 24.10 and newer: browse the router's filesystem, upload and
-download, rename, copy, move, change permissions, and edit text files with syntax highlighting.
-`luci-base` and `cgi-io` are the only dependencies — there is no backend of its own.
-
-Written for the [Footstrap](https://github.com/VizzleTF/luci-theme-footstrap) theme and usable under
-any other: the listing is a stock LuCI `<table class="table">`, and the stylesheet is scoped to this
-package's own `.fsf-*` classes, unlayered and without one `!important`.
+A file manager page for LuCI on OpenWrt 24.10 and newer. It depends on `luci-base` and `cgi-io`
+only, and works under any LuCI theme.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/tiles-dark.png">
@@ -27,124 +22,92 @@ package's own `.fsf-*` classes, unlayered and without one `!important`.
 
 ## Install
 
-The package is published to the `owfeed-packages` feed. Add the feed once — it installs the key, the
-repository, and makes both survive a sysupgrade:
+Add the `owfeed-packages` feed once. The script installs the feed's key, keeps the feed and the key
+across a sysupgrade, and updates the package lists:
 
 ```sh
 wget -qO- https://repo.owfeed.org/subscribe.sh | sh
 ```
 
-Then install by name:
+Install the package:
 
 ```sh
 apk add luci-app-footstrap-files        # 25.12 and newer
 opkg install luci-app-footstrap-files   # 24.10
 ```
 
-Then **System → Files**.
+Open **System → Files**.
 
-Installing a feed's key tells the router to trust it for every package name, not only this one.
-[owfeed.org/install](https://owfeed.org/install/) says what that means and shows the same steps by
-hand.
+- The feed's key is trusted for every package in the feed.
+  [owfeed.org/install](https://owfeed.org/install/) shows the same steps by hand.
+- Translations are separate packages: `luci-i18n-footstrap-files-ru`, `-es`, `-zh-cn`. apk installs
+  one by itself when the matching `luci-i18n-base-*` is present. With opkg, install it by name:
+  `opkg install luci-i18n-footstrap-files-ru`.
 
-Russian, Spanish and Simplified Chinese: apk installs `luci-i18n-footstrap-files-ru`, `-es` or
-`-zh-cn` by itself on a router that already has the matching `luci-i18n-base-ru`, `-es` or `-zh-cn`.
-opkg has no conditional form, so ask for the catalogue by name.
+Without the feed, download the package from a [release](../../releases/latest) to the router. Each
+file has a usign signature beside it (`.sig`). `luci-base` and `cgi-io` must already be installed.
 
-For a router the feed cannot serve, every [release](../../releases/latest) carries the same `.apk`
-and `.ipk` with a usign signature beside each file.
+```sh
+apk add --allow-untrusted ./luci-app-footstrap-files-0.1.5-r1.apk   # 25.12 and newer
+opkg install ./luci-app-footstrap-files_0.1.5-r1_all.ipk            # 24.10
+```
 
 ## What it does
 
-- **Browse** — breadcrumbs, sortable columns, a list view and a tile view, the path in the URL so a
-  directory can be bookmarked
-- **Change** — upload (button, or drag a file onto the folder it belongs in), download, rename,
-  copy, move, delete, new file, new directory
-- **Permissions** — mode and owner, shown as `drwxr-xr-x root:root`, edited as `644` and
-  `user:group`, recursive only if the box is ticked
-- **Edit** — syntax highlighting, line numbers, bracket matching, and find-and-replace behind a
-  magnifier button beside Save (Ctrl/Cmd+F too, where there is a keyboard); files up to 1 MB
-- **Hex** — any file can be opened as bytes instead: offsets, sixteen columns, the ASCII beside
-  them, type over a byte and save. The file's mode and owner survive the save
-- **With a mouse** — drag a rectangle over empty space to select what it touches, drag a file (or a
-  whole selection) onto a folder to move it there
-- **On a phone** — the listing cards up per file, and the editor is a real `<textarea>` underneath,
-  so the keyboard, IME and autocorrect are the phone's own
+- **Browse**: breadcrumbs, sortable columns, list or tiles. The path is in the URL.
+- **Change**: upload (button or drag and drop), download, rename, copy, move, delete, new file, new
+  folder.
+- **Permissions**: mode as `644`, owner as `user:group`. Recursive only when the box is ticked.
+- **Edit text**: files up to 1 MB (a larger file is refused), highlighting for uci, shell and JSON,
+  line numbers, bracket matching, find and replace.
+- **Edit bytes**: a file that is not text opens in a hex editor. A save keeps its mode and owner.
 
-No hex editor, no markdown preview, no column resizing — the parts of the stock
-`luci-app-filemanager` this package leaves out.
+It has no markdown preview and no column resizing.
 
-## Selecting
+## Keys and gestures
 
-One click opens; selecting several is a mode, because that is what a phone can drive. The model is
-the iOS Files app: a tap opens, a long press opens the menu, and its **Select** turns on a mode
-where every tap ticks and the toolbar becomes a count with Copy, Move, Delete and Done.
+| Action | Mouse and keyboard | Touch |
+|---|---|---|
+| Open | click, Enter | tap |
+| Menu | right click | long press |
+| Select several | Ctrl/Cmd+click, Shift+click, Shift+arrows, Space, Ctrl/Cmd+A, drag a rectangle from empty space | menu → **Select**, then tap |
+| Move | drag onto a folder | **Move**, open the destination, **Paste here** |
+| Find in the editor | Ctrl/Cmd+F | magnifier button |
 
-A mouse does not wait for the mode — Ctrl/Cmd+click toggles, Shift+click takes the range, and using
-either turns the mode on. From the keyboard: arrows move, Shift+arrows extend, Space ticks, Enter
-opens or edits, Ctrl/Cmd+A takes everything, Escape leaves.
+Escape leaves select mode. A delete and a move by dragging ask first.
 
-## Permissions
+## Access
 
-This package asks for **full read and write access to the filesystem as root** — the same grant the
-stock file manager takes:
+The package runs as **root over the whole filesystem**, the same grant the stock
+`luci-app-filemanager` takes:
 
 ```json
 "file": { "/*": [ "list", "read", "write", "exec" ] }
 ```
 
-That is what a file manager is, and it is worth stating plainly: anyone who can log into LuCI under
-this package's ACL group can read and change any file on the router. There is no setting that
-narrows it.
+Anyone who can log into LuCI with the `luci-app-footstrap-files` ACL can read and change any file on
+the router and run any command as root. No setting narrows it.
 
-Operations ubus has no method for — `mkdir`, `mv`, `cp`, `chmod`, `chown` — run through `fs.exec`
-with an **argument array** and `--` before the operands, never a shell string. A file called
-`; reboot;` or `-rf` is an argument, not a command and not a flag. A name from the filesystem
-reaches the page as text only: there is no `innerHTML` here, and CI fails the build if one appears.
+- Commands (`mkdir`, `mv`, `cp`, `rm`, `chmod`, `chown`) run with an argument array and `--`, never
+  a shell string. A file named `; reboot;` or `-rf` is an argument.
+- A file name reaches the page as text. The code has no `innerHTML`, and CI checks it.
 
-## The editor
+## Build
 
-[prism-code-editor](https://github.com/jonpyt/prism-code-editor) (MIT) provides the editor and the
-find-and-replace widget, and nothing else: **15 files, 26 KB on flash.** What it does not provide
-any more is the colours or the grammars.
-
-**The grammars are ours** (`grammars.js`, 1 KB): uci, shell and json. It used to be highlighted as shell — the
-closest thing the library shipped, and still wrong, because `config interface 'lan'` has no keywords
-in bash and a config file came out as bare words with quoted strings. Prism's own INI grammar was
-worse: measured on a 120-line `/etc/config/network`, it tokenised nine things. The shell grammar
-beside it replaces the library's 5.7 KB `bash`, which described here-documents and process
-substitution for files that contain neither.
-
-**The colours come from the theme, not from GitHub** (`editor.css`). The library ships a light and a
-dark sheet of literals and expects the page to swap them; this is one file on the 26 export-tier
-names every LuCI theme publishes, so the editor follows the page into dark mode with nothing to
-choose and no second stylesheet — the contract in
-[the theme's app guide](https://github.com/VizzleTF/luci-theme-footstrap/blob/main/docs/luci-app-styling-guide.md).
-
-The editor's stylesheets live inside the view's own tree, so nothing this page loads can reach the
-rest of the document — the property that ruled out the alternatives.
-
-## Building
+Run from the repository root. `owfeed` comes from [owfeed/owfeed](https://github.com/owfeed/owfeed).
 
 ```sh
-npm ci                                     # terser and acorn, which minify the staged payload
-tools/t0.sh                                # every module parses, before and after the buildbot's jsmin
-FOOTSTRAP_VERSION=0.1.0 ./tools/stage.sh   # dist/root, dist/VERSION, dist/scripts, dist/i18n-*
-owfeed build                               # dist/noarch/*.apk (25.12) + dist/all/*.ipk (24.10)
-./luci-app-footstrap-files/update-po.sh    # rescan strings; --check is the CI gate
+npm ci
+tools/t0.sh                                # parse checks, before and after jsmin
+FOOTSTRAP_VERSION=0.1.5 ./tools/stage.sh   # dist/root, minified; set your own version
+owfeed build                               # dist/noarch/*.apk and dist/all/*.ipk, translations too
 ```
 
-Staging minifies what ships: terser over the view's own modules and `tools/minify-css.sh` over the
-stylesheets, and terser again over the vendored editor as ES modules — every module's import and
-export names compared before and after, because 17 files import each other by name. The whole
-payload goes from 110,255 bytes to 68,534. Nothing in the checkout is rewritten.
-
-An OpenWrt SDK build works too — the `Makefile` is an ordinary `luci.mk` package, and there jsmin
-does the minifying because a buildbot has no node — but nothing released here comes from one: this
-package is noarch, and the SDK spends five minutes per format fetching a cross toolchain in order to
-run `cp`.
+The `.apk` is 30 KB. The `Makefile` is an ordinary `luci.mk` package, so an OpenWrt SDK build works
+too.
 
 ## Licence
 
-Apache-2.0. The vendored editor is MIT and its licence travels with it, under
-`htdocs/luci-static/resources/view/footstrap-files/vendor/pce/LICENSE`.
+Apache-2.0. The editor is [prism-code-editor](https://github.com/jonpyt/prism-code-editor) (MIT),
+vendored with its licence under
+`luci-app-footstrap-files/htdocs/luci-static/resources/view/footstrap-files/vendor/pce/LICENSE`.
