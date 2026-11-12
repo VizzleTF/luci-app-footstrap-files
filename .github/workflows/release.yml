@@ -13,15 +13,15 @@
 # `verify-with` holds the release job to it.
 #
 # EVERY ACTION IS PINNED TO A COMMIT, never to a tag. A tag is a pointer its owner moves with one
-# `git tag -f`, so `@v0.5.1` is a promise about a name and not about any particular bytes — and this
+# `git tag -f`, so `@v0.5.6` is a promise about a name and not about any particular bytes — and this
 # is the workflow that carries `contents: write` and BOTH signing keys, and that produces the package
 # a router installs and whose post-install runs as root. Nothing downstream would notice: the tag
-# still reads v0.5.1, `verify-with` runs inside the same job, and the feed pins the key, not the
+# still reads v0.5.6, `verify-with` runs inside the same job, and the feed pins the key, not the
 # build. The comment after each SHA is the tag it was cut from, and .github/dependabot.yml is what
 # rewrites the pair — a pin with nothing updating it is just a way to sit on a known hole for ever.
 #
-# owfeed's v0.5.1 is an ANNOTATED tag: `git ls-remote --tags` prints the tag OBJECT (d380f471…) and
-# what a workflow reference needs is the COMMIT under it — the `^{}` row, 07f81eca….
+# owfeed's v0.5.6 is an ANNOTATED tag: `git ls-remote --tags` prints the tag OBJECT (dfc98008…) and
+# what a workflow reference needs is the COMMIT under it — the `^{}` row, be4da6dd….
 
 name: release
 
@@ -61,7 +61,7 @@ jobs:
 
       - uses: owfeed/owfeed/setup@be4da6ddbb2f78353f7e5ba291533ae5463de22c # v0.5.6
         with:
-          version: v0.5.1
+          version: v0.5.6
 
       # The COMMIT's timestamp, not the job's: a package's identity is a hash over its payload and
       # mkpkg records mtimes, so re-running a release over the same commit must produce the same
@@ -107,7 +107,7 @@ jobs:
       sign-key: ${{ secrets.OWFEED_AUTHOR_KEY }}
       usign-key: ${{ secrets.FOOTSTRAP_USIGN_KEY }}
     with:
-      owfeed-version: v0.5.1
+      owfeed-version: v0.5.6
       # NO installer asset and no notes file here, unlike the theme: this package is installed from
       # the feed or with `apk add` on a router that already has one, so there is nothing to fetch
       # before a shell can run it, and a file nobody reads is one more thing to sign and keep true.

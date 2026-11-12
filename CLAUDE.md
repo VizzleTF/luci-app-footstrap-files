@@ -273,13 +273,13 @@ table markup. The three that cost the most:
   before and after and refuses to write one whose seam moved, and CI re-checks the same thing
   against the staged tree. The vendored CSS is already minified by that build and ships verbatim.
 - **EVERY ACTION IS PINNED TO A COMMIT, never to a tag**, and `.github/dependabot.yml` is what keeps
-  the pins from freezing. A tag is a pointer its owner moves with one `git tag -f`, so `@v0.5.1`
+  the pins from freezing. A tag is a pointer its owner moves with one `git tag -f`, so `@v0.5.6`
   promises a name and not any particular bytes — and `release.yml` is where `contents: write` and
   BOTH signing keys live, producing the package a router installs and whose post-install runs as
   root. `verify-with: release.pub` does not cover this: it runs inside the same job. The comment
   after each SHA is the tag it was cut from. **An annotated tag needs the `^{}` row**: `git ls-remote
   --tags` prints the tag OBJECT, and a workflow reference resolves only the commit under it —
-  owfeed's v0.5.1 is `07f81eca`, not the `d380f471` the plain listing shows.
+  owfeed's v0.5.6 is `be4da6dd`, not the `dfc98008` the plain listing shows.
 
 ## Commands
 
